@@ -29,7 +29,7 @@ const tree = (left, subtree, right) => dispatch(list(
   ".",  "tree(" + $(left) + "," + $(subtree) + "," + $(right) + ")",
   cons, v => left(cons)(subtree, right)(v),
   snoc, right("snoc")(left,subtree),
-  scan, append(left(scan), append(subtree(scan), right(scan))
+  scan, append(left(scan), append(subtree(scan), right(scan)))
 ));
 
 const digit1 = v1 => dispatch(list(
@@ -62,12 +62,12 @@ const digit4 = (v1,v2,v3,v4) => dispatch(list(
 
 const node2 = (v1,v2) => dispatch(list(
   ".",  "(" + $(v1) + "," + $(v2) + ")",
-  scan, foldl(null,append)(list(v1,v2)),
+  scan, foldl(null,append)(list(v1,v2))
 ));
 
 const node3 = (v1,v2,v3) => dispatch(list(
   ".",  "(" + $(v1) + "," + $(v2) + "," + $(v3) + ")",
-  scan, foldl(null,append)(list(v1,v2,v3)),
+  scan, foldl(null,append)(list(v1,v2,v3))
 ));
 
 function build(n) {
