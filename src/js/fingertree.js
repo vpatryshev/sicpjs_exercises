@@ -9,51 +9,66 @@ const map = f => list => is_null(list) ? null : pair(f(head(list)), map(f)(tail(
 const $ = v => is_string(v) ? v : (!is_function(v) || (v(".") === undefined)) ? stringify(v) : v(".");
 const cons = "cons";
 const snoc = "snoc";
+const scan = "scan";
 
 const single = a => dispatch(list(
-    ".", "single(" + $(a) + ")",
+    ".",  "single(" + $(a) + ")",
     cons, b => tree(digit1(b), empty, digit1(a)),
-    snoc, b => tree(digit1(a), empty, digit1(b))
+    snoc, b => tree(digit1(a), empty, digit1(b)),
+    scan, list(a)
 ));    
 
 const empty = dispatch(list(
-    ".", "<>",
+    ".",  "<>",
     cons, single,
-    snoc, single
+    snoc, single,
+    scan, null
 ));
 
 const tree = (left, subtree, right) => dispatch(list(
-	".", "tree(" + $(left) + "," + $(subtree) + "," + $(right) + ")",
+  ".",  "tree(" + $(left) + "," + $(subtree) + "," + $(right) + ")",
   cons, v => left(cons)(subtree, right)(v),
-  snoc, right("snoc")(left,subtree)
+  snoc, right("snoc")(left,subtree),
+  scan, append(left(scan), append(subtree(scan), right(scan))
 ));
 
 const digit1 = v1 => dispatch(list(
   ".", "[" + $(v1) + "]",
   cons, (subtree, right) => v => tree(digit2(v,v1), subtree, right),
-  snoc, (left, subtree) => v => tree(left, subtree, digit2(v1,v))
+  snoc, (left, subtree) => v => tree(left, subtree, digit2(v1,v)),
+  scan, list(v1)
 ));
 
 const digit2 = (v1,v2) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "]",
   cons, (subtree, right) => v => tree(digit3(v,v1,v2), subtree, right),
-  snoc, (left, subtree) => v => tree(left, subtree, digit3(v1,v2,v))
+  snoc, (left, subtree) => v => tree(left, subtree, digit3(v1,v2,v)),
+  scan, list(v1,v2)
 ));
 
 const digit3 = (v1,v2,v3) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "," + $(v3) + "]",
   cons,(subtree, right) => v => tree(digit4(v,v1,v2,v3), subtree, right),
-  snoc,(left, subtree) => v => tree(left, subtree, digit4(v1,v2,v3,v))  
+  snoc,(left, subtree) => v => tree(left, subtree, digit4(v1,v2,v3,v)),
+  scan, list(v1,v2,v3)
 ));
 
 const digit4 = (v1,v2,v3,v4) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "," + $(v3) + "," + $(v4) + "]",
   cons,(subtree, right) => v => tree(digit2(v,v1),subtree(cons)(node3(v2,v3,v4)),right),
-  snoc,(left, subtree) => v => tree(left,subtree(snoc)(node3(v1,v2,v3)),digit2(v4,v))
+  snoc,(left, subtree) => v => tree(left,subtree(snoc)(node3(v1,v2,v3)),digit2(v4,v)),
+  scan, list(v1,v2,v3,v4)
 ));
 
-const node2 = (v1,v2) => dispatch(list(".", "(" + $(v1) + "," + $(v2) + ")"));
-const node3 = (v1,v2,v3) => dispatch(list(".", "(" + $(v1) + "," + $(v2) + "," + $(v3) + ")"));
+const node2 = (v1,v2) => dispatch(list(
+  ".",  "(" + $(v1) + "," + $(v2) + ")",
+  scan, foldl(null,append)(list(v1,v2)),
+));
+
+const node3 = (v1,v2,v3) => dispatch(list(
+  ".",  "(" + $(v1) + "," + $(v2) + "," + $(v3) + ")",
+  scan, foldl(null,append)(list(v1,v2,v3)),
+));
 
 function build(n) {
     if (n === 0) { return empty; }
