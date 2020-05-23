@@ -4,18 +4,27 @@ const lookup = dict => key => is_null(dict) ?  undefined :
                               lookup(tail(dict))(key);
 const table = kvpairs => is_null(kvpairs) ? null :
               pair(pair(head(kvpairs), head(tail(kvpairs))), table(tail(tail(kvpairs))));
+const foldl = op => z => list => is_null(list) ? z :
+              foldl(op)(op(z,head(list)))(tail(list));
+
+const flatten = xs => is_null(xs) ? null : !is_list(xs) ? list(xs) :
+               append(is_list(head(xs)) ? flatten(head(xs)) : list(head(xs)),
+                      flatten(tail(xs)));
+
 const dispatch = list => lookup(table(list));
 const map = f => list => is_null(list) ? null : pair(f(head(list)), map(f)(tail(list)));
+const flatmap = f => list => flatten(map(f)(list));
+
+const cons = "cons"; const snoc = "snoc";
+
 const $ = v => is_string(v) ? v : (!is_function(v) || (v(".") === undefined)) ? stringify(v) : v(".");
-const cons = "cons";
-const snoc = "snoc";
-const scan = "scan";
+const scan = v => (!is_function(v) || (v(scan) === undefined)) ? flatten(v) : v(scan);
 
 const single = a => dispatch(list(
     ".",  "single(" + $(a) + ")",
     cons, b => tree(digit1(b), empty, digit1(a)),
     snoc, b => tree(digit1(a), empty, digit1(b)),
-    scan, list(a)
+    scan, scan(a)
 ));    
 
 const empty = dispatch(list(
@@ -29,54 +38,62 @@ const tree = (left, subtree, right) => dispatch(list(
   ".",  "tree(" + $(left) + "," + $(subtree) + "," + $(right) + ")",
   cons, v => left(cons)(subtree, right)(v),
   snoc, right("snoc")(left,subtree),
-  scan, append(left(scan), append(subtree(scan), right(scan)))
+  scan, flatmap(scan)(list(left, subtree, right))
 ));
 
 const digit1 = v1 => dispatch(list(
   ".", "[" + $(v1) + "]",
   cons, (subtree, right) => v => tree(digit2(v,v1), subtree, right),
   snoc, (left, subtree) => v => tree(left, subtree, digit2(v1,v)),
-  scan, list(v1)
+  scan, flatmap(scan)(list(v1))
 ));
 
 const digit2 = (v1,v2) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "]",
   cons, (subtree, right) => v => tree(digit3(v,v1,v2), subtree, right),
   snoc, (left, subtree) => v => tree(left, subtree, digit3(v1,v2,v)),
-  scan, list(v1,v2)
+  scan, flatten(list(scan(v1),scan(v2)))
 ));
 
 const digit3 = (v1,v2,v3) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "," + $(v3) + "]",
   cons,(subtree, right) => v => tree(digit4(v,v1,v2,v3), subtree, right),
   snoc,(left, subtree) => v => tree(left, subtree, digit4(v1,v2,v3,v)),
-  scan, list(v1,v2,v3)
+  scan, flatten(list(scan(v1),scan(v2),scan(v3)))
 ));
 
 const digit4 = (v1,v2,v3,v4) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "," + $(v3) + "," + $(v4) + "]",
   cons,(subtree, right) => v => tree(digit2(v,v1),subtree(cons)(node3(v2,v3,v4)),right),
   snoc,(left, subtree) => v => tree(left,subtree(snoc)(node3(v1,v2,v3)),digit2(v4,v)),
-  scan, list(v1,v2,v3,v4)
+  scan, flatten(list(scan(v1),scan(v2),scan(v3),scan(v4)))
 ));
 
 const node2 = (v1,v2) => dispatch(list(
   ".",  "(" + $(v1) + "," + $(v2) + ")",
-  scan, foldl(null,append)(list(v1,v2))
+  scan, flatten(list(scan(v1),scan(v2)))
 ));
 
 const node3 = (v1,v2,v3) => dispatch(list(
   ".",  "(" + $(v1) + "," + $(v2) + "," + $(v3) + ")",
-  scan, foldl(null,append)(list(v1,v2,v3))
+  scan, flatten(map(scan)(list(v1,v2,v3)))
 ));
 
 function build(n) {
     if (n === 0) { return empty; }
     else {
-        const t = build(n-1)(snoc)(n);
-        display($(t));
+        const t = build(n-1)(cons)(n);
+//        display($(t));
         return t;
     }
 }
-build(22);
-"done";
+const t = build(20);
+map(scan)(list(2));
+digit1(2)(scan);
+t(scan);
+//node3(2,3,4)(scan);
+//digit1(node3(2,3,4))(scan);
+//tree(digit1(node3(2,3,4)),empty,digit1(node3(5,6,7)))(scan);
+
+//"ok";
+
