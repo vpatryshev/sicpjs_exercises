@@ -20,11 +20,14 @@ const reduce = (op, z) => tree => tree(reduce)(op, z);
 const $ = v => is_string(v) ? v : (!is_function(v) || (v(".") === undefined)) ? stringify(v) : v(".");
 const scan = v => (!is_function(v) || (v(scan) === undefined)) ? flatten(v) : v(scan);
 
+function tded(a,b) {
+    return tree(digit1(b), empty, digit1(a));
+}
 const single = a => dispatch(list(
     ".",  "single(" + $(a) + ")",
     cons, b => tree(digit1(b), empty, digit1(a)),
     snoc, b => tree(digit1(a), empty, digit1(b)),
-    scan, scan(a),
+    scan, scan(a)
     
 ));    
 
@@ -38,7 +41,7 @@ const empty = dispatch(list(
 const tree = (left, subtree, right) => dispatch(list(
   ".",  "tree(" + $(left) + "," + $(subtree) + "," + $(right) + ")",
   cons, v => left(cons)(subtree, right)(v),
-  snoc, right("snoc")(left,subtree),
+  snoc, v => right(snoc)(left,subtree)(v),
   scan, flatmap(scan)(list(left, subtree, right))
 ));
 
@@ -53,46 +56,39 @@ const digit2 = (v1,v2) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "]",
   cons, (subtree, right) => v => tree(digit3(v,v1,v2), subtree, right),
   snoc, (left, subtree) => v => tree(left, subtree, digit3(v1,v2,v)),
-  scan, flatten(list(scan(v1),scan(v2)))
+  scan, flatmap(scan)(list(v1,v2))
 ));
 
 const digit3 = (v1,v2,v3) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "," + $(v3) + "]",
   cons,(subtree, right) => v => tree(digit4(v,v1,v2,v3), subtree, right),
   snoc,(left, subtree) => v => tree(left, subtree, digit4(v1,v2,v3,v)),
-  scan, flatten(list(scan(v1),scan(v2),scan(v3)))
+  scan, flatmap(scan)(list(v1,v2,v3))
 ));
 
 const digit4 = (v1,v2,v3,v4) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "," + $(v3) + "," + $(v4) + "]",
   cons,(subtree, right) => v => tree(digit2(v,v1),subtree(cons)(node3(v2,v3,v4)),right),
   snoc,(left, subtree) => v => tree(left,subtree(snoc)(node3(v1,v2,v3)),digit2(v4,v)),
-  scan, flatten(list(scan(v1),scan(v2),scan(v3),scan(v4)))
+  scan, flatmap(scan)(list(v1,v2,v3,v4))
 ));
 
 const node2 = (v1,v2) => dispatch(list(
   ".",  "(" + $(v1) + "," + $(v2) + ")",
-  scan, flatten(list(scan(v1),scan(v2)))
+  scan, flatmap(scan)(list(v1,v2))
 ));
 
 const node3 = (v1,v2,v3) => dispatch(list(
   ".",  "(" + $(v1) + "," + $(v2) + "," + $(v3) + ")",
-  scan, flatten(map(scan)(list(v1,v2,v3)))
+  scan, flatmap(scan)(list(v1,v2,v3))
 ));
 
 const foldl = op => z => list => is_null(list) ? z :
               foldl(op)(op(z,head(list)))(tail(list));
 
-function build(n) {
-    if (n === 0) { return empty; }
-    else {
-        const t = build(n-1)(cons)(n);
-//        display($(t));
-        return t;
-    }
-}
-const t = build(20);
-const sum = reduce((a,b) => a+b, 0);
-display(sum(t));
+const build = n => n === 0 ? empty : build(n-1)(cons)(n);
+const t = build(30);
+display($(t));
+display(scan(t));
 "ok";
 
