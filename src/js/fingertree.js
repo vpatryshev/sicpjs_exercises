@@ -15,10 +15,10 @@ const flatmap = f => list => flatten(map(f)(list));
 
 const cons = tree => tree(cons);
 const snoc = tree => tree(snoc);
-const reduce = (op, z) => tree => tree(reduce)(op, z);
 
 const $ = v => is_string(v) ? v : (!is_function(v) || (v(".") === undefined)) ? stringify(v) : v(".");
 const scan = v => (!is_function(v) || (v(scan) === undefined)) ? flatten(v) : v(scan);
+const foldl = (op, z) => v => (!is_function(v) || (v(foldl) === undefined)) ? op(z,v) : v(foldl)(op,z);
 
 function tded(a,b) {
     return tree(digit1(b), empty, digit1(a));
@@ -27,68 +27,75 @@ const single = a => dispatch(list(
     ".",  "single(" + $(a) + ")",
     cons, b => tree(digit1(b), empty, digit1(a)),
     snoc, b => tree(digit1(a), empty, digit1(b)),
-    scan, scan(a)
-    
+    scan, scan(a),
+    foldl, (op,z) => foldl(op,z)(a)
 ));    
 
 const empty = dispatch(list(
     ".",  "<>",
     cons, single,
     snoc, single,
-    scan, null
+    scan, null,
+    foldl, (op,z) => z
 ));
 
 const tree = (left, subtree, right) => dispatch(list(
   ".",  "tree(" + $(left) + "," + $(subtree) + "," + $(right) + ")",
   cons, v => left(cons)(subtree, right)(v),
   snoc, v => right(snoc)(left,subtree)(v),
-  scan, flatmap(scan)(list(left, subtree, right))
+  scan, flatmap(scan)(list(left, subtree, right)),
+  foldl, (op,z) => op(op(op(z,foldl(op,z)(left)),foldl(op,z)(subtree)),foldl(op,z)(right))
 ));
 
 const digit1 = v1 => dispatch(list(
   ".", "[" + $(v1) + "]",
   cons, (subtree, right) => v => tree(digit2(v,v1), subtree, right),
   snoc, (left, subtree) => v => tree(left, subtree, digit2(v1,v)),
-  scan, flatmap(scan)(list(v1))
+  scan, flatmap(scan)(list(v1)),
+  foldl, (op,z) => foldl(op,z)(v1)
 ));
 
 const digit2 = (v1,v2) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "]",
   cons, (subtree, right) => v => tree(digit3(v,v1,v2), subtree, right),
   snoc, (left, subtree) => v => tree(left, subtree, digit3(v1,v2,v)),
-  scan, flatmap(scan)(list(v1,v2))
+  scan, flatmap(scan)(list(v1,v2)),
+  foldl, (op,z) => op(foldl(op,z)(v1),foldl(op,z)(v2))
 ));
 
 const digit3 = (v1,v2,v3) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "," + $(v3) + "]",
   cons,(subtree, right) => v => tree(digit4(v,v1,v2,v3), subtree, right),
   snoc,(left, subtree) => v => tree(left, subtree, digit4(v1,v2,v3,v)),
-  scan, flatmap(scan)(list(v1,v2,v3))
+  scan, flatmap(scan)(list(v1,v2,v3)),
+  foldl, (op,z) => op(op(foldl(op,z)(v1),foldl(op,z)(v2)),foldl(op,z)(v3))
 ));
 
 const digit4 = (v1,v2,v3,v4) => dispatch(list(
   ".", "[" + $(v1) + "," + $(v2) + "," + $(v3) + "," + $(v4) + "]",
   cons,(subtree, right) => v => tree(digit2(v,v1),subtree(cons)(node3(v2,v3,v4)),right),
   snoc,(left, subtree) => v => tree(left,subtree(snoc)(node3(v1,v2,v3)),digit2(v4,v)),
-  scan, flatmap(scan)(list(v1,v2,v3,v4))
+  scan, flatmap(scan)(list(v1,v2,v3,v4)),
+  foldl, (op,z) => op(op(op(foldl(op,z)(v1),foldl(op,z)(v2)),foldl(op,z)(v3)),foldl(op,z)(v4))
 ));
 
 const node2 = (v1,v2) => dispatch(list(
   ".",  "(" + $(v1) + "," + $(v2) + ")",
-  scan, flatmap(scan)(list(v1,v2))
+  scan, flatmap(scan)(list(v1,v2)),
+  foldl, (op,z) => op(op(z,foldl(op,z)(v1)),foldl(op,z)(v2))
 ));
 
 const node3 = (v1,v2,v3) => dispatch(list(
   ".",  "(" + $(v1) + "," + $(v2) + "," + $(v3) + ")",
-  scan, flatmap(scan)(list(v1,v2,v3))
+  scan, flatmap(scan)(list(v1,v2,v3)),
+  foldl, (op,z) => op(op(op(z,foldl(op,z)(v1)),foldl(op,z)(v2)),foldl(op,z)(v3))
 ));
-
-const foldl = op => z => list => is_null(list) ? z :
-              foldl(op)(op(z,head(list)))(tail(list));
 
 const build = n => n === 0 ? empty : build(n-1)(cons)(n);
 const t = build(30);
 display($(t));
-display(scan(t));
-"ok";
+//display(scan(t));
+t(foldl)((x,y)=>x+y,1000000);
+//display(t(foldl)((x,y)=>x+y,1000000));
+//"ok";
 
