@@ -4,8 +4,6 @@ const lookup = dict => key => is_null(dict) ?  undefined :
                               lookup(tail(dict))(key);
 const table = kvpairs => is_null(kvpairs) ? null :
               pair(pair(head(kvpairs), head(tail(kvpairs))), table(tail(tail(kvpairs))));
-const foldl = op => z => list => is_null(list) ? z :
-              foldl(op)(op(z,head(list)))(tail(list));
 
 const flatten = xs => is_null(xs) ? null : !is_list(xs) ? list(xs) :
                append(is_list(head(xs)) ? flatten(head(xs)) : list(head(xs)),
@@ -15,7 +13,9 @@ const dispatch = list => lookup(table(list));
 const map = f => list => is_null(list) ? null : pair(f(head(list)), map(f)(tail(list)));
 const flatmap = f => list => flatten(map(f)(list));
 
-const cons = "cons"; const snoc = "snoc";
+const cons = tree => tree(cons);
+const snoc = tree => tree(snoc);
+const reduce = (op, z) => tree => tree(reduce)(op, z);
 
 const $ = v => is_string(v) ? v : (!is_function(v) || (v(".") === undefined)) ? stringify(v) : v(".");
 const scan = v => (!is_function(v) || (v(scan) === undefined)) ? flatten(v) : v(scan);
@@ -24,7 +24,8 @@ const single = a => dispatch(list(
     ".",  "single(" + $(a) + ")",
     cons, b => tree(digit1(b), empty, digit1(a)),
     snoc, b => tree(digit1(a), empty, digit1(b)),
-    scan, scan(a)
+    scan, scan(a),
+    
 ));    
 
 const empty = dispatch(list(
@@ -79,6 +80,9 @@ const node3 = (v1,v2,v3) => dispatch(list(
   scan, flatten(map(scan)(list(v1,v2,v3)))
 ));
 
+const foldl = op => z => list => is_null(list) ? z :
+              foldl(op)(op(z,head(list)))(tail(list));
+
 function build(n) {
     if (n === 0) { return empty; }
     else {
@@ -88,12 +92,7 @@ function build(n) {
     }
 }
 const t = build(20);
-map(scan)(list(2));
-digit1(2)(scan);
-t(scan);
-//node3(2,3,4)(scan);
-//digit1(node3(2,3,4))(scan);
-//tree(digit1(node3(2,3,4)),empty,digit1(node3(5,6,7)))(scan);
-
-//"ok";
+const sum = reduce((a,b) => a+b, 0);
+display(sum(t));
+"ok";
 
