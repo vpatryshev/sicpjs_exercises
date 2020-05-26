@@ -1,0 +1,108 @@
+% finger tree diagram
+% Author: Vlad Patryshev
+% Thanks to: Remus Mihail Prunescu
+% link: https://www.overleaf.com/project/5ecc567bcc5e2e000133c297
+\documentclass{minimal}
+\usepackage[a4paper,margin=1cm,portrait]{geometry}
+\usepackage{tikz}
+
+%%%<
+\usepackage{verbatim}
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+\setlength\PreviewBorder{5pt}%
+%%%>
+
+\usetikzlibrary{positioning,shadows,arrows}
+
+\begin{document}
+  \begin{center}
+    \begin{tikzpicture}[
+      tree/.style={circle, draw=black, fill=red,
+      text centered, anchor=north, text=white},
+      node/.style={circle, draw=black, rounded corners=1mm, fill=teal,
+      text centered, anchor=north, text=white},
+      leaf/.style={rectangle, draw=black, fill=blue,
+      text centered, anchor=north, text=white},
+      level distance=1.5cm, growth parent anchor=south
+    ]
+      \node (Tree00) [tree] {99} [->]
+      child{node (Leaf22) [leaf] {$\textbf{0}$}}
+      child{node (Leaf22) [leaf] {$\textbf{2}$}}
+      child{node (Leaf22) [leaf] {$\textbf{5}$}}
+      child{[sibling distance=8cm]
+        node (Tree12) [tree] {92}
+        child{ [sibling distance=0.7cm]
+          node (Node22) [node] {20}
+          child{node (Leaf22) [leaf] {$\textbf{15}$}}
+          child{node (Leaf23) [leaf] {$\textbf{16}$}}
+          child{node (Leaf24) [leaf] {$\textbf{20}$}}
+        }
+        child{ [sibling distance=4.3cm]
+          node (Tree14) [tree] {81}
+          child{ [sibling distance=2.2cm]
+            node (Tree17) [node] {60}
+            child{ [sibling distance=0.7cm]
+              node (Node22) [node] {40}
+              child{node (Leaf23) [leaf] {$\textbf{30}$}}
+              child{node (Leaf24) [leaf] {$\textbf{40}$}}
+            }
+            child{ [sibling distance=0.8cm]
+              node (Node22) [node] {57}
+              child{node (Leaf22) [leaf] {$\textbf{51}$}}
+              child{node (Leaf23) [leaf] {$\textbf{52}$}}
+              child{node (Leaf24) [leaf] {$\textbf{57}$}}
+            }
+            child{ [sibling distance=0.8cm]
+              node (Node22) [node] {60}
+              child{node (Leaf24) [leaf] {$\textbf{60}$}}
+            }
+          }
+          child{ [sibling distance=1.4cm]
+            node (Tree17) [node] {71}
+            child{ [sibling distance=0.7cm]
+              node (Node22) [node] {69}
+              child{node (Leaf22) [leaf] {$\textbf{61}$}}
+              child{node (Leaf23) [leaf] {$\textbf{63}$}}
+              child{node (Leaf24) [leaf] {$\textbf{69}$}}
+            }
+            child{ [sibling distance=0.7cm]
+              node (Node22) [node] {71}
+              child{node (Leaf24) [leaf] {$\textbf{71}$}}
+            }
+          }
+          child{
+            node (Tree16) [tree] {0}
+          }
+          child{ [sibling distance=1.2cm]
+            node (Tree17) [node] {81}
+            child{ [sibling distance=0.7cm]
+              node (Node22) [node] {78}
+              child{node (Leaf23) [leaf] {$\textbf{74}$}}
+              child{node (Leaf24) [leaf] {$\textbf{78}$}}
+            }
+            child{ [sibling distance=0.8cm]
+              node (Node22) [node] {81}
+              child{node (Leaf24) [leaf] {$\textbf{81}$}}
+            }
+          }
+        }
+        child{ [sibling distance=0.7cm]
+          node (Node22) [node] {88}
+          child{node (Leaf22) [leaf] {$\textbf{83}$}}
+          child{node (Leaf23) [leaf] {$\textbf{84}$}}
+          child{node (Leaf24) [leaf] {$\textbf{88}$}}
+        }
+        child{ [sibling distance=0.7cm]
+          node (Node22) [node] {92}
+          child{node (Leaf22) [leaf] {$\textbf{90}$}}
+          child{node (Leaf23) [leaf] {$\textbf{92}$}}
+        }
+      }
+      child{node (Leaf22) [leaf] {$\textbf{95}$}}
+      child{node (Leaf22) [leaf] {$\textbf{99}$}}
+      ;
+
+    \end{tikzpicture}
+  \end{center}
+\end{document}
