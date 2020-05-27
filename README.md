@@ -3,6 +3,7 @@
 [link](https://sicp.comp.nus.edu.sg/)
 
 <h2>Finger Tree</h2>
+[original paper](http://www.staff.city.ac.uk/~ross/papers/FingerTree.pdf)
 https://github.com/vpatryshev/sicpjs_exercises/blob/master/src/js/fingertree.js
 
 other implementations:
