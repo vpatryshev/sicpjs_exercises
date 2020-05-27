@@ -2,7 +2,7 @@
 
 [link](https://sicp.comp.nus.edu.sg/)
 
-#Finger Tree#
+<h2>Finger Tree</h2>
 
 other implementations:
 - https://github.com/qiao/fingertree.js/blob/master/src/fingertree.js
