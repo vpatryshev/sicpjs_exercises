@@ -9,11 +9,20 @@ sealed trait Trampoline[+A] {
       case More(k) => k().run
       case Done(v) => v
     }
+
+  def map[B](f: A => B): Trampoline[B]
+  def flatMap[B](f: A => Trampoline[B]): Trampoline[B]
 }
 
-case class More[+A](k:() => Trampoline[A]) extends Trampoline[A]
-
-case class Done[+A](result: A) extends Trampoline[A]
+case class More[+A](k:() => Trampoline[A]) extends Trampoline[A] {
+  def map[B](f: A => B): More[B] = More(() => k() map f)
+  def flatMap[B](f: A => Trampoline[B]): Trampoline[B] = More(() => k() flatMap f)
+}
+// this is also pure()
+case class Done[+A](result: A) extends Trampoline[A] {
+  def map[B](f: A => B): Done[B] = Done(f(result))
+  def flatMap[B](f: A => Trampoline[B]): Trampoline[B] = f(result)
+}
 
 object Trampoline extends Testing {
   def even[A](ns : List[() => A]): Trampoline[Boolean] =
@@ -28,7 +37,6 @@ object Trampoline extends Testing {
     }
   
   def run(): Unit = {
-
     try {
       val whoCares = even(crashingList(200)).run
       mustFail("We expected an exception thrown")
