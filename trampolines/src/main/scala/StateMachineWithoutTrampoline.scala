@@ -1,3 +1,4 @@
+
 object StateMachineWithoutTrampoline extends Testing {
 
   case class State[S, +A](step : S =>(A, S)) {
@@ -26,6 +27,7 @@ object StateMachineWithoutTrampoline extends Testing {
     as.foldLeft(
       pureState[Int, List[(Int,A)]](List()) // this machine outputs List() on every transition(which are all identities)
    )((acc, a) => {      // acc is state machine(starting with pure state above; a is an element of the list
+       limitStack(as.size - 2, s"before loop: $a")
        for {
          xs <- acc      // output of state machine, of type List[(Int,A)]]
          n  <- getState // output is int, because that's how we want it in line 34
@@ -51,26 +53,15 @@ object StateMachineWithoutTrampoline extends Testing {
       val indexed = zipIndex(crashingList(250))
       mustFail("We expected an exception thrown")
     } catch {
-      case ex: IllegalArgumentException =>
-        val stacktrace = ex.getStackTrace
-        val mainEntry = stacktrace(7)
-        for {
-          i <- 8 to 15
-        } require(stacktrace(i) == mainEntry, s"Ex.1. We expected nine identical stacktrace rows, failed at $i")
+      case ex: IllegalArgumentException => println(ex.getMessage)
     }
-    println("Stacktrace demonstrates that we will have a stack overflow on large collections in zipIndex.")
+    println("Stacktrace demonstrates thoat we will have a stack overflow on large collections in zipIndex.")
 
     try {
       even(crashingList(250))
       mustFail("We expected an exception thrown")
     } catch {
-      case ex: IllegalArgumentException =>
-        val stacktrace = ex.getStackTrace
-        require(stacktrace.size > 100, s"something wrong at ${stacktrace.size}: ${ex.getMessage}")
-        val mainEntry = stacktrace(2)
-        for { i <- 4 to 12 by 2 } {
-          require(stacktrace(i) == mainEntry, s"Ex.2. We expected nine identical rows, failed at $i\n${stacktrace mkString "\n"}")
-        }
+      case ex: IllegalArgumentException => println(ex.getMessage)
     }
     println("Stacktrace demonstrates that we will have a stack overflow on large collections in mutual recursion.")
   }
