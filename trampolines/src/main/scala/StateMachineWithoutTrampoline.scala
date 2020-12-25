@@ -30,6 +30,7 @@ object StateMachineWithoutTrampoline extends Testing {
        limitStack(as.size - 2, s"before loop: $a")
        for {
          xs <- acc      // output of state machine, of type List[(Int,A)]]
+         _ = limitStack(as.size - 2, s"inside loop: $a")
          n  <- getState // output is int, because that's how we want it in line 34
          _  <- setState(n + 1)
        } yield (n,a())::xs
@@ -53,7 +54,7 @@ object StateMachineWithoutTrampoline extends Testing {
       val indexed = zipIndex(crashingList(250))
       mustFail("We expected an exception thrown")
     } catch {
-      case ex: IllegalArgumentException => println(ex.getMessage)
+      case ex: IllegalStateException => println(ex.getMessage)
     }
     println("Stacktrace demonstrates thoat we will have a stack overflow on large collections in zipIndex.")
 
@@ -61,7 +62,7 @@ object StateMachineWithoutTrampoline extends Testing {
       even(crashingList(250))
       mustFail("We expected an exception thrown")
     } catch {
-      case ex: IllegalArgumentException => println(ex.getMessage)
+      case ex: IllegalStateException => println(ex.getMessage)
     }
     println("Stacktrace demonstrates that we will have a stack overflow on large collections in mutual recursion.")
   }
