@@ -1,28 +1,30 @@
-import StateMachineWithoutTrampoline.limitStack
+// source: http://days2012.scala-lang.org/sites/days2012/files/bjarnason_trampolines.pdf
+
+import TrampolineV1._
 
 object StateMachineWithTrampoline extends Testing {
   
   case class State[S, +A](step : S => Trampoline[(A, S)]) {
     def map[B](f: A => B): State[S, B] = State(s => {
       val (done1, done2) = step(s).run
-      Done("state", (f(done1), done2))
+      Done((f(done1), done2))
     })
     
     def altMap[B](f: A => B): State[S, B] =
       flatMap[B](a => pureState[S, B](f(a))) // must be same as map
     
     def flatMap[B](f: A => State[S,B]): State[S, B] =
-      State[S,B](s => More("flat", () => {
+      State[S,B](s => More(() => {
         val (a, s1) = step(s).run
-        More("flat1", () => f(a) step s1)
+        More(() => f(a) step s1)
       }))
   }
     
-  def pureState[S, A](a: A): State[S, A] = State[S, A] (s => Done("pure", (a, s)))
+  def pureState[S, A](a: A): State[S, A] = State[S, A] (s => Done((a, s)))
 
-  def getState[S]: State[S, S] = State(s =>Done("get", (s,s)))
+  def getState[S]: State[S, S] = State(s =>Done((s,s)))
   
-  def setState[S](s: S): State[S, Unit] = State(_ =>Done("set", ((),s)))
+  def setState[S](s: S): State[S, Unit] = State(_ =>Done(((),s)))
 
   def zipIndex[A](as: List[() => A]): List[(Int,A)] =
     as.foldLeft(
@@ -43,16 +45,16 @@ object StateMachineWithTrampoline extends Testing {
     ns match {
       case Nil => 
         limitStack(90, "EVEN DONE")
-        Done("even", true)
-      case x :: xs => More(s"even $x", () => odd(xs))
+        Done(true)
+      case x :: xs => More(() => odd(xs))
     }
     
   def odd[A](ns : List[() => A]): Trampoline[Boolean] =
     ns match {
       case Nil =>
         limitStack(90, "ODD DONE")
-        Done("odd", false)
-      case x :: xs => More(s"odd $x", () => even(xs))
+        Done(false)
+      case x :: xs => More(() => even(xs))
     }
 
   def run(): Unit = {
@@ -73,7 +75,7 @@ object StateMachineWithTrampoline extends Testing {
     } catch {
       case exex: IllegalStateException =>
         val stacktrace = exex.getStackTrace
-        println(s"This solution is not enough: we still have a deep stack (${stacktrace.length} entries)")
+        println(s"This solution is not enough: we still have a deep stack (${stacktrace.length} entries now)")
     }
     println("Stacktrace demonstrates that we will still have a stack overflow on large collections in zipIndex.")
 
