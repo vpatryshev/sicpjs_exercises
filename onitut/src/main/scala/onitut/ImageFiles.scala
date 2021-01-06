@@ -1,15 +1,20 @@
 package onitut
 
 import com.drew.imaging._
-import com.drew.metadata.Metadata
+import com.drew.metadata.{Directory, Metadata}
+import com.drew.metadata.exif.{ExifDirectoryBase, ExifIFD0Directory, ExifSubIFDDirectory}
 import com.drew.metadata.file.FileSystemDirectory
 
-import java.io.{File, IOException}
+import java.io.{File, FileInputStream, IOException, InputStream}
 import java.nio.file.Files
 import java.security.MessageDigest
+import java.sql.Time
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.{Calendar, Date, TimeZone}
+import scala.annotation.meta
 import scala.language.postfixOps
+import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
@@ -53,12 +58,12 @@ object ImageFiles {
    * @return A singleton list for an image file, or Nil
    */
   private def realFile(file: File): List[FileRecord] = {
-    if (Files.isSymbolicLink(file.toPath) && file.canRead && file.length > 0) {
+    if (!Files.isSymbolicLink(file.toPath) && file.canRead && file.length > 0) {
       try {
         List(FileRecord(file))
       } catch {
         case x: Exception =>
-//          val fr = FileRecord(file)
+          val fr = FileRecord(file)
 //          throw x
           Nil
       }
@@ -98,7 +103,7 @@ object ImageFiles {
     def size: Long
     def hash: String
 
-    def paths: String = files.map(f => s"${f._1.getAbsoluteFile.getCanonicalPath}[${f._2}]") mkString ";"
+    def paths: String = files.map(f => s"${f._1.getAbsoluteFile.getCanonicalPath}[${new Date(f._2)}]") mkString ";"
 
     override def compare(that: Record): Int = paths compare that.paths
   }
@@ -206,41 +211,51 @@ object ImageFiles {
    * @param file image data file
    */
   case class FileRecord(file: File) extends FileOrLink {
+
+    def touch(): Unit = exifTimestamp foreach {
+      ts => 
+        println(s"${file.lastModified} -> $ts")
+        try {
+          file.setLastModified(ts)
+        } catch {
+          case x: Exception =>
+            println(x)
+        }
+    }
+
+    def hasProblemWithTimestamp: Boolean = {
+      val yes = !isOld && exifTimestamp.exists (ts => Math.abs(ts - timestamp) > 1800000)
+      yes
+    }
+
+    def fileTimestampDoneLater: Boolean = {
+      val yes = !isOld && exifTimestamp.exists (timestamp + 3601000 >)
+      yes
+    }
+
     require(!Files.isSymbolicLink(file.toPath), s"It's a link; need an actual file: $file")
     require(file.canRead, s"Not a readable file: $file")
     require(file.length > 0, s"empty file: $file")
     
     lazy val id: String = hash
 
-    override def toString: String = s"$paths($exifTimestamp)\t$size\t$hash"
+    override def toString: String = {
+      s"$paths(${new Date(exifTimestamp.getOrElse(timestamp))})\t$size\t$hash"
+    }
 
     override def compare(that: Record): Int = paths compare that.paths
 
     /**
-     * @return Metadata of the image
+     * @return Exif of the image
      */
-    def meta: Metadata = try {
-      ImageMetadataReader.readMetadata(file)
-    } catch {
-      case x: Exception =>
-        throw new IOException(s"Failed on file $file", x)
-    }
-
-    /**
-     * @return image modification time from exif, as a string
-     */
-    def realModTime: String =
-      meta.getFirstDirectoryOfType(classOf[FileSystemDirectory]).getString(3)
-
-    /**
-     * @return image timestamp, as ZonedDateTime
-     */
-    def exifTime: ZonedDateTime = ZonedDateTime.parse(realModTime, ExifTimeFormat)
+    lazy val exif: Exif = Exif(file)
 
     /**
      * @return image timestamp, in milliseconds
      */
-    val exifTimestamp: Long = exifTime.toInstant.toEpochMilli
+    val exifTimestamp: Option[Long] = exif.timestamp
+
+    def isOld: Boolean = timestamp < timeAfterWhichExifDateMakesSense
 
     /**
      * @return singleton list with this file and its file timestamp
@@ -250,5 +265,78 @@ object ImageFiles {
     override def size: Long = file.length
 
     override def hash: String = ImageFiles hashOf file
+  }
+
+  import scala.reflect.ClassTag
+
+  private def theClassOf[T:ClassTag]: Class[T] = implicitly[ClassTag[T]].runtimeClass.asInstanceOf[Class[T]]
+
+  def min[T <: Comparable[T]](first: Option[T], second: Option[T]): Option[T] = {
+    (first, second) match {
+      case (Some(a: T), Some(b: T)) => Some(if (a.compareTo(b) <= 0) a else b)
+      case _ => first orElse second
+    }
+  }
+  
+  def dt(date0: Option[Date], date1: Option[Date]): Long = (date0, date1) match {
+    case (Some(d0), Some(d1)) => Math.abs(d0.getTime - d1.getTime)
+    case _ => 0L
+  }
+  
+  private def year(date: Date): Int = {
+    val calendar = Calendar.getInstance
+    calendar.setTime(date)
+    calendar.get(Calendar.YEAR)
+  }
+
+  case class Exif(file: File) {
+    /**
+     * Metadata of the image
+     */
+    lazy val meta: Metadata = try ImageMetadataReader.readMetadata(file)
+    catch { case x: Exception =>
+      throw new IOException(s"Failed on file $file", x)
+    }
+
+    private def dir[T <: Directory : ClassTag]: Option[T] =
+      Option(meta.getFirstDirectoryOfType(theClassOf[T]))
+
+    import java.util.Calendar
+    import java.util.TimeZone
+      
+    val ourTimeZone: TimeZone = Calendar.getInstance.getTimeZone
+    
+    /**
+     * @return image timestamp, as Date
+     */
+    def date: Option[Date] = {
+      val date0s = dir[ExifIFD0Directory].flatMap(dir => Option(dir.getString(306)))
+      val date0 = filterTimestamp(dir[ExifIFD0Directory].flatMap(dir => Option(dir.getDate(306, ourTimeZone))))
+      val subIFD = dir[ExifSubIFDDirectory]
+      val date1s = subIFD.flatMap(dir => Option(dir.getObject(36867)))
+      val date1 = filterTimestamp(subIFD flatMap (dir => Option(dir.getDateOriginal(ourTimeZone))))
+      val minDate = min(date0, date1)
+      minDate
+    }
+
+    /**
+     * @return image timestamp, in milliseconds
+     */
+    val timestamp: Option[Long] = {
+      val t = date map (_.getTime)
+      if (t.isDefined && t.get < 0) {
+        println(s"wtf, time is $t")
+      }
+      t
+    }
+  }
+  
+  def filterTimestamp(ts: Option[Date]): Option[Date] =
+    ts filter(_.getTime > timeAfterWhichExifDateMakesSense)
+
+  val timeAfterWhichExifDateMakesSense: Long = {
+    val c: Calendar = Calendar.getInstance()
+    c.set(2000, 0, 1)
+    c.getTime.getTime
   }
 }

@@ -61,10 +61,16 @@ object Main {
     // revert them all, so all images are in pictures folder
     for (link <- externalPhotoLinks) link.revert()
 
-    // check that files timestamps are same as exif timestamps in images
-    val badFiles = scannedPhotos collect { case fr: FileRecord if fr.exifTimestamp != fr.timestamp => fr }
-    require(badFiles.isEmpty, s"bad files: $badFiles")
+    // files with too late timestamps
+    // that files timestamps are same as exif timestamps in images
+    val filesToTouch = scannedPhotos collect { case fr: FileRecord if fr.fileTimestampDoneLater => fr }
+    filesToTouch foreach (_.touch())
     
+    // that files timestamps are same as exif timestamps in images
+    val badFiles = scannedPhotos collect { case fr: FileRecord if fr.hasProblemWithTimestamp => fr }
+    println("\n\nFiles With Problems\n")
+    badFiles foreach println
+//    require(badFiles.isEmpty, s"bad files: $badFiles")
     // the folder that may contain more pictures
     val rootFolder = new File(root)
     if (!rootFolder.isDirectory) fail(s"$root is not a directory")
