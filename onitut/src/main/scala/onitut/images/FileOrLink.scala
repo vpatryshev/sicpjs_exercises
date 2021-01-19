@@ -11,6 +11,8 @@ import java.util.{Calendar, Date}
 trait FileOrLink extends Record {
   def path: Path
 
+  def name: String = path.getFileName.toString
+  
   def makeItBak(): Path = makeBak(path)
 
   // TODO: fix it

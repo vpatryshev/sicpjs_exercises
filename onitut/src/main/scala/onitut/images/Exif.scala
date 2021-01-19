@@ -4,23 +4,24 @@ import com.drew.imaging.ImageMetadataReader
 import com.drew.metadata.exif.{ExifIFD0Directory, ExifSubIFDDirectory}
 import com.drew.metadata.{Directory, Metadata}
 
-import java.io.{File, IOException}
+import java.io.IOException
 import java.nio.file.Path
 import java.util.{Calendar, Date, TimeZone}
 import scala.reflect.ClassTag
 
 /**
  * An adapter for Exif data of an image file
- * @param file an image file path
+ * @param path an image file path
  */
-case class Exif(file: Path) {
+case class Exif(path: Path) {
   /**
    * Metadata of the image
    */
-  lazy val meta: Metadata = try ImageMetadataReader.readMetadata(file.toFile)
-  catch { case x: Exception =>
-    throw new IOException(s"Failed on file $file", x)
-  }
+  lazy val meta: Metadata =
+    try ImageMetadataReader.readMetadata(path.toFile)
+    catch { case x: Exception =>
+      throw new IOException(s"Failed on file $path", x)
+    }
 
   private def theClassOf[T:ClassTag]: Class[T] = implicitly[ClassTag[T]].runtimeClass.asInstanceOf[Class[T]]
 
@@ -33,26 +34,16 @@ case class Exif(file: Path) {
    * @return image timestamp, as Date
    */
   def date: Option[Date] = {
-    val date0s = dir[ExifIFD0Directory].flatMap(dir => Option(dir.getString(306)))
     val date0 = filterTimestamp(dir[ExifIFD0Directory].flatMap(dir => Option(dir.getDate(306, ourTimeZone))))
     val subIFD = dir[ExifSubIFDDirectory]
-    val date1s = subIFD.flatMap(dir => Option(dir.getObject(36867)))
     val date1 = filterTimestamp(subIFD flatMap (dir => Option(dir.getDateOriginal(ourTimeZone))))
-    val minDate = min(date0, date1)
-    minDate
+    min(date0, date1)
   }
 
   /**
    * @return image timestamp, in milliseconds
    */
-  val timestamp: Option[Long] = {
-    val t = date map (_.getTime)
-    if (t.isDefined && t.get < 0) {
-      println(s"wtf, time is $t")
-      None
-    }
-    t
-  }
+  val timestamp: Option[Long] = date map (_.getTime) filter (0 < _)
 
   def min[T <: Comparable[T]](first: Option[T], second: Option[T]): Option[T] = {
     (first, second) match {

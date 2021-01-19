@@ -1,10 +1,10 @@
 package onitut.images
 
-import java.io.File
+import java.io.{File, FileWriter, PrintWriter}
 import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.security.MessageDigest
-import java.util.{Calendar, Date}
 import scala.annotation.tailrec
+import scala.collection.MapView
 import scala.language.postfixOps
 import scala.util.Try
 
@@ -22,15 +22,14 @@ object ImageFiles {
   def hashOf(path: Path): String = hashOf(Files readAllBytes path)
   
   @tailrec
-  def resolveLink(paths: List[Path]): Either[String, Path] = {
+  def resolveLink(paths: List[Path]): Either[String, (Path, Int)] = {
     paths match {
       case path::_ if Files.isSymbolicLink(path) =>
         val target: Path = Files.readSymbolicLink(path)
         if (paths.contains(target)) Left("loop")
         else resolveLink(target::paths)
-      case _ => {
-        paths.headOption filter Files.isReadable toRight "missing"
-      }
+      case _ =>
+        paths.headOption filter Files.isReadable toRight "missing" map((_, paths.length-1))
     }
   }
 
@@ -41,14 +40,14 @@ object ImageFiles {
   private def link(file: File): FileLink = {
     val path = file.toPath
     if (Files.isSymbolicLink(path)) {
-      val to: Either[String, FileRecord] = Try {
+      val to: Either[String, (FileRecord, Int)] = Try {
         val target = resolveLink(path::Nil)
-        target map FileRecord
+        target map { case (p, depth) => (FileRecord(p), depth) }
       } .toEither.left.map(_.getMessage).flatten
       
       to match {
         case Left(err) => BadSymbolicLink(path, err)
-        case Right(target) => SymbolicLink(path, target)
+        case Right((target, depth)) => SymbolicLink(path, target, depth)
      }
     } else BadSymbolicLink(path, "not a link")
   }
@@ -109,96 +108,72 @@ object ImageFiles {
 
   def makeBak(path: Path): Path = {
     val bak = Paths.get(path + ".bak")
-    Files.move(path, bak, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES)
+    try {
+      Files.move(path, bak, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES)
+    } catch {
+      case oops: UnsupportedOperationException =>
+        Files.move(path, bak, StandardCopyOption.REPLACE_EXISTING)
+    }
     bak
   }
 
-  
-  case class FileGroup(files: List[(Path, Long)], size: Long, id: String) extends Record with Ordered[FileGroup]{
+  /**
+   * Groups all entries by their hash
+   * @param entries data we scan
+   * @return a list of grouped data
+   */
+  def analyze(entries: List[FileOrLink]): List[FileGroup] = {
 
-    require(files.nonEmpty, "Empty file list not allowed")
+    val grouped: Map[String, List[FileOrLink]] = entries.groupBy(_.id)
 
-    def paths: String = files.map(f => s"${f._1}[${new Date(f._2)}]") mkString ";"
-    
-    override def toString: String = s"$paths\t$size\t$id"
+    grouped.values.map(list => {
+      val files = list map (rec => (rec.path, rec.timestamp)) sortBy (_._2)
+      FileGroup(files, list.head.size, list.head.id)
+    }).toList sorted
+  }
 
-    /**
-     * Makes the first file in the list to be the image data file, and others must be links
-     */
-    def makeFirstFileLead(): Unit = {
-      val main = files.head._1
-      for (path <- files.tail.map(_._1)) {
-        val bak = makeBak(path)
-        try {
-          Files.createSymbolicLink(path, main)
-        } catch {
-          case x: Exception =>
-            System.err.println(s"failed to create link $path to $main: ${x.getMessage}")
-        }
-        Files.delete(bak)
-      }
-    }
-
-    def compare(that: FileGroup): Int = paths compare that.paths
+  def dump(data: List[Record], path: String): Unit = {
+    val out = new PrintWriter(new FileWriter(path))
+    data foreach out.println
+    out.close()
   }
 
   /**
-   * Represents an image data file
-   * @param path image data file
+   * group scanned photos by year
+   * @param scannedPhotos list of files (or links?)
+   * @param photoDir the folder where all phostos are supposed to be stored
+   * @return a pair: a map: year -> list of photos, and a sequence of undated photos
    */
-  case class FileRecord(path: Path) extends FileOrLink {
-    val file: File = path.toFile
-
-    def touch(): Unit = exifTimestamp foreach {
-      ts => try file.setLastModified(ts)
-            catch {
-              case x: Exception =>
-                println(s"$x on $this")
-            }
+  def groupByYear(scannedPhotos: List[FileOrLink], photoDir: Path): (Map[Int, List[FileRecord]], Seq[FileRecord]) = {
+    val photosWithYearsMaybe = scannedPhotos.collect {
+      case fr: FileRecord => (fr.folderYear(photoDir), fr)
     }
 
-    def folderYear(photoDir: String): Option[Int] =
-      Try(file.getPath.slice(photoDir.length + 1, photoDir.length + 5).toInt) toOption
-    
-    def moveToItsYear(): Unit = {
-       ???            
+    val datedPhotos: List[(Int, FileRecord)] = photosWithYearsMaybe collect {
+      case (Some(year: Int), fr) => year -> fr
     }
 
-    def hasProblemWithTimestamp: Boolean = {
-      val yes = !isOld && exifTimestamp.exists (ts => Math.abs(ts - timestamp) > 1800000)
-      yes
+    val undatedPhotos: Seq[FileRecord] = photosWithYearsMaybe collect {
+      case (None, fr) => fr
     }
+    val mapByYear = (datedPhotos groupBy (_._1)).view.mapValues(_.map(_._2)).toMap
 
-    def fileTimestampDoneLater: Boolean = {
-      val yes = !isOld && exifTimestamp.exists (timestamp + 3601000 >)
-      yes
-    }
-
-    require(!Files.isSymbolicLink(file.toPath), s"It's a link; need an actual file: $file")
-    require(file.canRead, s"Not a readable file: $file")
-    require(file.length > 0, s"empty file: $file")
-    
-    def shortString: String = s"$file(${new Date(exifTimestamp.getOrElse(timestamp))})"
-
-    override def toString: String = {
-      s"$shortString\t$size\t$id"
-    }
-
-    /**
-     * @return Exif of the image
-     */
-    lazy val exif: Exif = Exif(path)
-
-    /**
-     * @return image timestamp, in milliseconds
-     */
-    lazy val exifTimestamp: Option[Long] = exif.timestamp
-    
-    def isOld: Boolean = timestamp < Exif.TimeAfterWhichExifDateMakesSense
-
-    override def size: Long = Files size path
-
-    override lazy val id: String = ImageFiles hashOf path
-
+    (mapByYear, undatedPhotos)
   }
+
+  /**
+   * Reverts links pointing outside of our photo folder
+   * @param files all (image) files in our photo folder
+   * @param photoDir photo pholder path
+   */
+  def revertExternalLinks(files: List[FileOrLink], photoDir: Path): Unit = {
+    // links in our pictures folder pointing outside
+    val externalPhotoLinks = files collect {
+      case link: SymbolicLink if !(link isInside photoDir) => link
+    }
+
+    // revert them all, so all images are in pictures folder
+    externalPhotoLinks foreach (_.revert())
+  }
+
 }
