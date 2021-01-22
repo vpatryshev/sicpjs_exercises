@@ -4,7 +4,6 @@ import java.io.{File, FileWriter, PrintWriter}
 import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.security.MessageDigest
 import scala.annotation.tailrec
-import scala.collection.MapView
 import scala.language.postfixOps
 import scala.util.Try
 
@@ -34,11 +33,10 @@ object ImageFiles {
   }
 
   /**
-   * @param file link file
+   * @param path link file path
    * @return a list (maybe empty) of SymbolicLink records, or Nil if it's not a link
    */
-  private def link(file: File): FileLink = {
-    val path = file.toPath
+  private def link(path: Path): FileLink = {
     if (Files.isSymbolicLink(path)) {
       val to: Either[String, (FileRecord, Int)] = Try {
         val target = resolveLink(path::Nil)
@@ -56,20 +54,15 @@ object ImageFiles {
    * Creates a FileRecord for a regular image file;
    * if the file is not a regular image, is empty, or cannot be read, we return Nil
    * 
-   * @param file image file
+   * @param path image file path
    * @return A singleton list for an image file, or Nil
    */
-  private def realFile(file: File): Option[FileRecord] = {
-    val path = file.toPath
-    if (!Files.isSymbolicLink(path) && file.canRead && file.length > 0) {
-      try {
-        Option(FileRecord(path))
-      } catch {
-        case x: Exception =>
-//          val fr = FileRecord(path) // this line is good for debugging: uncomment and see what happens
-          None
-      }
-    } else None
+  private def realFile(path: Path): Option[FileRecord] = {
+    if (!Files.isSymbolicLink(path) &&
+         Files.isReadable    (path) &&
+         Files.size          (path) > 0)
+         Try { FileRecord(path) } toOption
+    else None
   }
 
   //
@@ -106,9 +99,12 @@ object ImageFiles {
    * @return a list of records for all image files or links to image files
    */
   def scan(file: File): List[FileOrLink] = traverse(
-    file => if (!file.getName.toLowerCase.matches(Extensions)) None else
-            if (Files.isSymbolicLink(file.toPath)) Option(link(file))
-            else realFile(file)
+    f => {
+      val path = f.toPath
+      if (!path.getFileName.toString.toLowerCase.matches(Extensions)) None else
+        if (Files.isSymbolicLink(path)) Option(link(path))
+        else realFile(path)
+    }
           )(file) toList
 
   def makeBak(path: Path): Path = {
