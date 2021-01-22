@@ -128,7 +128,7 @@ object ImageFiles {
 
     grouped.values.map(list => {
       val files = list map (rec => (rec.path, rec.timestamp)) sortBy (_._2)
-      FileGroup(files, list.head.size, list.head.id)
+      FileGroup(files, list.head.id)
     }).toList sorted
   }
 

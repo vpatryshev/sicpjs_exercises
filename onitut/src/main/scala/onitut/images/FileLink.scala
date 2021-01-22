@@ -10,8 +10,6 @@ case class BadSymbolicLink(override val path: Path, why: String) extends FileLin
 
   override def toString = s"Bad Link $path: $why"
 
-  override def size: Long = 0
-
   def fix(target: FileRecord): FileLink = {
     if (!Files.isSymbolicLink(path)) {
       println(s"failed to rename $path")
@@ -77,7 +75,7 @@ case class SymbolicLink(path: Path, to: FileRecord, depth: Int = 1) extends File
   /**
    * @return target file size, or 0
    */
-  def size: Long = to.size
+//  def size: Long = to.size
 
   def id: String = to.id
 }

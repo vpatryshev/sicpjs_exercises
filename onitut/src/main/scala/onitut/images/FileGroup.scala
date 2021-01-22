@@ -5,13 +5,13 @@ import onitut.images.ImageFiles.makeBak
 import java.nio.file.{Files, Path}
 import java.util.Date
 
-case class FileGroup(files: List[(Path, Long)], size: Long, id: String) extends Record with Ordered[FileGroup]{
+case class FileGroup(files: List[(Path, Long)], id: String) extends Record with Ordered[FileGroup]{
 
   require(files.nonEmpty, "Empty file list not allowed")
 
   def paths: String = files.map(f => s"${f._1}[${new Date(f._2)}]") mkString ";"
 
-  override def toString: String = s"$paths\t$size\t$id"
+  override def toString: String = s"$paths\t$id"
 
   /**
    * Makes the first file in the list to be the image data file, and others must be links

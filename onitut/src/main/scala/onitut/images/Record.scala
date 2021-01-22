@@ -12,7 +12,5 @@ trait Record {
    * @return record id
    */
   def id: String
-  def size: Long
-
-  def desc(file: File): String = ???
+//  def size: Long
 }

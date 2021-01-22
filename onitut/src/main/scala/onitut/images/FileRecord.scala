@@ -67,7 +67,7 @@ case class FileRecord(path: Path) extends FileOrLink {
 
   def isOld: Boolean = timestamp < Exif.TimeAfterWhichExifDateMakesSense
 
-  override def size: Long = Files size path
+  def size: Long = Files size path
 
   override lazy val id: String = ImageFiles hashOf path
 
