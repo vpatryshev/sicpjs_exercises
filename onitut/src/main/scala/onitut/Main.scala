@@ -84,7 +84,7 @@ object Main {
     
     new File(storage).renameTo(new File(s"storage.${DateFormat.format(new Date)}.bak"))
 
-    def badBackups = fold(
+    def badBackups = traverse(
       Option(_) filter(_.getName.toLowerCase.endsWith(".jpg.bak"))
     )(new File(root))
 

@@ -6,25 +6,38 @@ import java.util.Date
 /**
  * Represents symbolic links to files with data
  */
-sealed trait FileLink extends FileOrLink
+sealed trait FileLink extends FileOrLink {
+}
 
+/**
+ * Represents a bad symbolic link
+ * @param path link path
+ * @param why explanation of why it is bad
+ */
 case class BadSymbolicLink(override val path: Path, why: String) extends FileLink {
+
+  /**
+   * We need an id, but we can't produce the file's hash.
+   *  @return record id
+   */
   def id: String = "@" + path
 
   override def toString = s"Bad Link $path: $why"
 
+  /**
+   * Try to fix this bad link
+   * @param target the new target for this symbolic link
+   * @return a new FileLink instance (it's good now)
+   */
   def fix(target: FileRecord): FileLink = {
     if (!Files.isSymbolicLink(path)) {
-      println(s"failed to rename $path")
+      println(s"failed to rename $path: it's not a symbolic link")
       this
-    } else {
-      val bak = makeItBak()
+    } else doWithBackup {
       Files.createSymbolicLink(path, target.path)
-      Files.delete(bak)
-      SymbolicLink(path, target, 0)
+      SymbolicLink(path, target)
     }
   }
-
 }
 
 /**
@@ -34,26 +47,18 @@ case class BadSymbolicLink(override val path: Path, why: String) extends FileLin
  */
 case class SymbolicLink(path: Path, to: FileRecord, depth: Int = 1) extends FileLink {
   def redirectTo(target: FileRecord): SymbolicLink = {
-    operate(() => {
+    doWithBackup {
       SymbolicLink(Files.createSymbolicLink(path, target.path), target)
-    })
+    }
   }
-
 
   require(to.timestamp > Exif.MinPhotoTime, s"wrong link for $path: ${to.path}, ${new Date(to.timestamp)}")
-
-  private def operate[T](op: () => T): T = {
-    val bak = makeItBak()
-    val result = op()
-    Files.delete(bak)
-    result
-  }
   
   /**
    * Removes a chain of links, pointing directly to the target file
    */
   def resolve(): Unit = if (depth > 1) {
-    operate(() => Files.createSymbolicLink(path, to.path))
+    doWithBackup { Files.createSymbolicLink(path, to.path) }
   }
 
   /**
@@ -61,11 +66,11 @@ case class SymbolicLink(path: Path, to: FileRecord, depth: Int = 1) extends File
    * The contents of the target image is moved (as a file) to where the link was,
    * and is given the former link's name.
    */
-  def revert(): Unit = operate(() => {
+  def revert(): Unit = doWithBackup {
     Files.move(to.path, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES)
     Files.createSymbolicLink(to.path, path)
     println(s"reverted $path to $to")
-  })
+  }
 
   /**
    * Checks whether this file is located somewhere inside a folder with the given path
@@ -74,11 +79,6 @@ case class SymbolicLink(path: Path, to: FileRecord, depth: Int = 1) extends File
    */
   def isInside(folderPath: Path): Boolean =
     to.path startsWith folderPath
-
-  /**
-   * @return target file size, or 0
-   */
-//  def size: Long = to.size
 
   def id: String = to.id
 }

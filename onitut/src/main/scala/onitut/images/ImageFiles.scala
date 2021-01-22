@@ -66,15 +66,20 @@ object ImageFiles {
         Option(FileRecord(path))
       } catch {
         case x: Exception =>
-          val fr = FileRecord(path)
-//          throw x
+//          val fr = FileRecord(path) // this line is good for debugging: uncomment and see what happens
           None
       }
     } else None
   }
 
-  // it's slightly cheaper than map/reduce
-  def fold[T](op: File => Option[T]): File => Iterable[T] = {
+  //
+  /**
+   * Traverses the collection of files inside the folder, recursively.
+   * @param op whatever wit do on the file
+   * @tparam T type of returned data, per file
+   * @return an iterable of `T`s.
+   */
+  def traverse[T](op: File => Option[T]): File => Iterable[T] = {
 
     def scan(file: File): Iterable[T] = {
       Try {
@@ -100,7 +105,7 @@ object ImageFiles {
    * @param file what we scan
    * @return a list of records for all image files or links to image files
    */
-  def scan(file: File): List[FileOrLink] = fold(
+  def scan(file: File): List[FileOrLink] = traverse(
     file => if (!file.getName.toLowerCase.matches(Extensions)) None else
             if (Files.isSymbolicLink(file.toPath)) Option(link(file))
             else realFile(file)
@@ -127,7 +132,8 @@ object ImageFiles {
     val grouped: Map[String, List[FileOrLink]] = entries.groupBy(_.id)
 
     grouped.values.map(list => {
-      val files = list map (rec => (rec.path, rec.timestamp)) sortBy (_._2)
+      val files: List[FileOrLink] = list sortBy (_.timestamp)
+      
       FileGroup(files, list.head.id)
     }).toList sorted
   }

@@ -46,4 +46,18 @@ trait FileOrLink extends Record {
     calendar.setTime(new Date(timestamp))
     calendar.get(Calendar.YEAR)
   }
+
+  /**
+   * Do something on a link while backing it up just in case; in the end delete the backup.
+   * @param op operation we want to run, returns of value of type `T`
+   * @tparam T type of result
+   * @return whatever result the operation produced - or an exception happens.
+   */
+  def doWithBackup[T](op: => T): T = {
+    val bak = makeItBak()
+    val result = op
+    Files.delete(bak)
+    result
+  }
+
 }

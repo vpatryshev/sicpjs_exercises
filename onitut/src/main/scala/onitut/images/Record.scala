@@ -12,5 +12,4 @@ trait Record {
    * @return record id
    */
   def id: String
-//  def size: Long
 }

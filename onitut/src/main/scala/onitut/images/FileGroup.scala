@@ -1,15 +1,17 @@
 package onitut.images
 
-import onitut.images.ImageFiles.makeBak
-
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
 import java.util.Date
 
-case class FileGroup(files: List[(Path, Long)], id: String) extends Record with Ordered[FileGroup]{
+case class FileGroup(files: List[FileOrLink], id: String) extends Record with Ordered[FileGroup]{
 
   require(files.nonEmpty, "Empty file list not allowed")
 
-  def paths: String = files.map(f => s"${f._1}[${new Date(f._2)}]") mkString ";"
+  /**
+   * paths of this group, with timestamps
+   * @return a comma-separated list of files with timestamps
+   */
+  def paths: String = files.map(f => s"${f.path}[${new Date(f.timestamp)}]") mkString ";"
 
   override def toString: String = s"$paths\t$id"
 
@@ -17,16 +19,15 @@ case class FileGroup(files: List[(Path, Long)], id: String) extends Record with 
    * Makes the first file in the list to be the image data file, and others must be links
    */
   def makeFirstFileLead(): Unit = {
-    val main = files.head._1
-    for (path <- files.tail.map(_._1)) {
-      val bak = makeBak(path)
-      try {
-        Files.createSymbolicLink(path, main)
-      } catch {
-        case x: Exception =>
-          System.err.println(s"failed to create link $path to $main: ${x.getMessage}")
+    val main: FileOrLink = files.head
+    for (file <- files.tail) {
+      file.doWithBackup {
+        try Files.createSymbolicLink(file.path, main.path)
+        catch {
+          case x: Exception =>
+            System.err.println(s"failed to create link $file to $main: ${x.getMessage}")
+        }
       }
-      Files.delete(bak)
     }
   }
 
