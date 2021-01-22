@@ -3,6 +3,9 @@ package onitut.images
 import java.nio.file.{Files, Path, StandardCopyOption}
 import java.util.Date
 
+/**
+ * Represents symbolic links to files with data
+ */
 sealed trait FileLink extends FileOrLink
 
 case class BadSymbolicLink(override val path: Path, why: String) extends FileLink {
