@@ -11,6 +11,9 @@ import scala.util.Try
  * Image files data handling
  */
 object ImageFiles {
+
+  lazy val HomeDir: Path = Paths.get(System.getProperty("user.home"))
+
   private val Extensions = ".*\\.jpg|jpeg"
 
   private val HashMethod = "MD5" // or "SHA" or "SHA-256"
@@ -68,26 +71,6 @@ object ImageFiles {
          Try { FileRecord(path) } toOption
     else None
   }
-
-  //
-  /**
-   * Traverses the collection of files inside the folder, recursively.
-   * @param op whatever wit do on the file
-   * @tparam T type of returned data, per file
-   * @return an iterable of `T`s.
-   */
-  def traverse[T](op: File => Option[T]): File => Iterable[T] = {
-
-    def scan(file: File): Iterable[T] = {
-      Try {
-        if (file.isDirectory) file.listFiles.toList flatMap scan
-        else op(file).toList
-      } getOrElse Nil
-    }
-
-    scan
-  }
-  
   /**
    * Contents of a folder, deep, as Records.
    * @param folder the folder we scan
@@ -111,6 +94,12 @@ object ImageFiles {
     }
           )(file) toList
 
+  /**
+   * Given a path, add `.bak` to its extension.
+   * First attempt to do it with COPY_ATTRIBUTES; if failed, just rename.
+   * @param path path of the file
+   * @return a new path, of the file that is renamed
+   */
   def makeBak(path: Path): Path = {
     val bak = Paths.get(path + ".bak")
     try {
@@ -186,5 +175,24 @@ object ImageFiles {
     // revert them all, so all images are in pictures folder
     externalPhotoLinks foreach (_.revert())
   }
+
+  /**
+   * Traverses the collection of files inside the folder, recursively.
+   * @param op whatever wit do on the file
+   * @tparam T type of returned data, per file
+   * @return an iterable of `T`s.
+   */
+  def traverse[T](op: File => Option[T]): File => Iterable[T] = {
+
+    def scan(file: File): Iterable[T] = {
+      Try {
+        if (file.isDirectory) file.listFiles.toList flatMap scan
+        else op(file).toList
+      } getOrElse Nil
+    }
+
+    scan
+  }
+
 
 }
