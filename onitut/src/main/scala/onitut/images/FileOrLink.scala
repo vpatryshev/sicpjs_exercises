@@ -9,17 +9,18 @@ import java.util.{Calendar, Date}
  * Abstract record describing an image file or a link (for which target may be missing)
  */
 trait FileOrLink extends Record {
+  
   /**
    * Path of this file (or link
    * @return the path
    */
-  def path: Path
+  val path: Path
 
   /**
    * File name
    * @return file name
    */
-  def name: String = path.getFileName.toString
+  lazy val name: String = path.getFileName.toString
 
   /**
    * Rename this file to a .bak file - to make sure it's not lost in action

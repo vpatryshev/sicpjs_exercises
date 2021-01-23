@@ -138,6 +138,11 @@ object ImageFiles {
     }).toList sorted
   }
 
+  /**
+   * Dumps a list of records to a file
+   * @param data list of records
+   * @param path path of the output file
+   */
   def dump(data: List[Record], path: String): Unit = {
     val out = new PrintWriter(new FileWriter(path))
     data foreach out.println

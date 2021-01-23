@@ -13,19 +13,19 @@ case class FileGroup(files: List[FileOrLink], id: String) extends Record with Or
    */
   def paths: String = files.map(f => s"${f.path}[${new Date(f.timestamp)}]") mkString ";"
 
-  override def toString: String = s"$paths\t$id"
+  override def toString: String = s"Group($paths)"
 
   /**
-   * Makes the first file in the list to be the image data file, and others must be links
+   * Makes the first file in the list to be the image data file, and others will be links
    */
   def makeFirstFileLead(): Unit = {
-    val main: FileOrLink = files.head
+    val lead: FileOrLink = files.head
     for (file <- files.tail) {
       file.doWithBackup {
-        try Files.createSymbolicLink(file.path, main.path)
+        try Files.createSymbolicLink(file.path, lead.path)
         catch {
           case x: Exception =>
-            System.err.println(s"failed to create link $file to $main: ${x.getMessage}")
+            System.err.println(s"failed to create link $file to $lead: ${x.getMessage}")
         }
       }
     }
