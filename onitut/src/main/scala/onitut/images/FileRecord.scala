@@ -12,22 +12,22 @@ import scala.util.Try
  */
 case class FileRecord(path: Path) extends FileOrLink {
 
+  /**
+   * Set the file's timestamp to what we found in exif
+   */
   def touch(): Unit = exifTimestamp foreach {
-    ts => try Files.setLastModifiedTime(path, FileTime.fromMillis(ts))
-    catch {
-      case x: Exception =>
-        println(s"$x on $this")
-    }
+    ts => try Files.setLastModifiedTime(path, FileTime fromMillis ts)
+    catch { case x: Exception => println(s"$x on $this") }
   }
 
   def folderYear(photoDir: Path): Option[Int] = {
-    val res = Try(photoDir.relativize(path).toString.substring(0, 4).toInt).toOption
-    res
+    Try(photoDir.relativize(path).toString.substring(0, 4).toInt).toOption
   }
 
   def moveToItsYear(photoDir: Path, links: List[SymbolicLink]): (FileRecord, List[SymbolicLink]) = {
     val yearPath = photoDir.resolve(year.toString)
     val newPath = yearPath.resolve(name)
+    
     if (Files.isRegularFile(newPath) && Files.isReadable(newPath)) {
       throw new IllegalArgumentException(s"File $newPath already exists, can't move $path there")
     }

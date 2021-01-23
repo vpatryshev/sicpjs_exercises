@@ -8,7 +8,7 @@ import scala.language.postfixOps
 import scala.util.Try
 
 /**
- * Contains image files data handling
+ * Image files data handling
  */
 object ImageFiles {
   private val Extensions = ".*\\.jpg|jpeg"
@@ -20,26 +20,30 @@ object ImageFiles {
   
   def hashOf(path: Path): String = hashOf(Files readAllBytes path)
   
-  @tailrec
-  def resolveLink(paths: List[Path]): Either[String, (Path, Int)] = {
-    paths match {
-      case path::_ if Files.isSymbolicLink(path) =>
-        val target: Path = Files.readSymbolicLink(path)
-        if (paths.contains(target)) Left("loop")
-        else resolveLink(target::paths)
-      case _ =>
-        paths.headOption filter Files.isReadable toRight "missing" map((_, paths.length-1))
+  def resolveLink(path: Path): Either[String, (Path, Int)] = {
+    @tailrec def trace(paths: List[Path]): Either[String, (Path, Int)] = {
+      paths match {
+        case path :: _ if Files.isSymbolicLink(path) =>
+          val target: Path = Files.readSymbolicLink(path)
+          if (paths.contains(target)) Left("circular loop")
+          else trace(target :: paths)
+
+        case path :: _ if Files.isReadable(path) => Right((path, paths.length - 1))
+        case _                                   => Left("missing")
+      }
     }
+      
+    trace(path::Nil)
   }
 
   /**
    * @param path link file path
    * @return a list (maybe empty) of SymbolicLink records, or Nil if it's not a link
    */
-  private def link(path: Path): FileLink = {
+   def link(path: Path): FileLink = {
     if (Files.isSymbolicLink(path)) {
       val to: Either[String, (FileRecord, Int)] = Try {
-        val target = resolveLink(path::Nil)
+        val target = resolveLink(path)
         target map { case (p, depth) => (FileRecord(p), depth) }
       } .toEither.left.map(_.getMessage).flatten
       
