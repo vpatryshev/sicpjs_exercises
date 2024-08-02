@@ -7,7 +7,9 @@ import java.io.File
 import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.util.Date
+import scala.Console.err
 import scala.language.postfixOps
+import onitut.Lib._
 
 /**
  * Manages image files across the drive
@@ -15,22 +17,7 @@ import scala.language.postfixOps
 object Main {
   val DateFormat: SimpleDateFormat = new SimpleDateFormat("yyyy-MM-dd")
   val Extensions = ".*\\.jpg|jpeg"
-  
-  def fail(msg: String): Nothing = {
-    System.err.println(msg)
-    System.exit(1)
-    throw new NotImplementedError(msg)
-  }
 
-  val HomeDir: File = new File(System.getProperty("user.home"))
-
-  /**
-   * This is the mac standard, pictures are in ~/Pictures
-   */
-  val DefaultPhotoDir: String = {
-    new File(HomeDir, "Pictures").getAbsoluteFile.getCanonicalPath
-  }
-  
   val DefaultListFile: String = "filelist.out"
 
   def fixLink(photosByName1: Map[String, Seq[FileRecord]], photosByName2: Map[String, Seq[FileRecord]])(link: BadSymbolicLink): FileLink = {
@@ -72,33 +59,37 @@ object Main {
    * 
    * @param args root: folder that we scan; photoDir: your pictures folder; storage: file where we store scanned data
    */
-  def main(args: Array[String]): Unit = {
-    val (root, photoDirString, storage) = args.toList match {
+  def main(args: Array[String]): Unit =
+
+    /**
+     * This is the mac standard, pictures are in ~/Pictures
+     */
+    val DefaultPhotoDir: String =
+      HomeDir.resolve("Pictures").toAbsolutePath.toString
+
+    val (root, photoDirString, storage) = args.toList match
       case first::second::third::_ => (first, second, third)
       case first::second::_ => (first, second, DefaultListFile)
       case first::_ => (first, DefaultPhotoDir, DefaultListFile)
       case _ => (".", DefaultPhotoDir, DefaultListFile)
-    }
 
     val photoDir = Paths.get(photoDirString)
     
     new File(storage).renameTo(new File(s"storage.${DateFormat.format(new Date)}.bak"))
 
-    def badBackups = traverse(
+    lazy val badBackups = traverse(
       Option(_) filter(_.getName.toLowerCase.endsWith(".jpg.bak"))
     )(new File(root))
 
     for {
       file <- badBackups
       betterFile = new File(file.getPath.dropRight(4))
-    } {
-      if (betterFile.exists()) {
-        println(s"wtf with $file?")
-      } else {
+    }
+      if (betterFile.exists())
+        err.println(s"wtf with $file?")
+      else
         file.renameTo(betterFile)
         println(s"$file renamed")
-      }
-    }
     
     require(badBackups.isEmpty, "All bad backups were supposed to be fixed by now")
 
@@ -111,11 +102,15 @@ object Main {
 
     // files with too late timestamps
     // that files timestamps are same as exif timestamps in images
-    val filesToTouch = scannedPhotos collect { case fr: FileRecord if fr.fileTimestampDoneLater => fr }
+    val filesToTouch = scannedPhotos collect {
+      case fr: FileRecord if fr.fileTimestampDoneLater => fr
+    }
     filesToTouch foreach (_.touch())
     
     // that files timestamps are same as exif timestamps in images
-    val badFiles = scannedPhotos collect { case fr: FileRecord if fr.hasProblemWithTimestamp => fr }
+    val badFiles = scannedPhotos collect {
+      case fr: FileRecord if fr.hasProblemWithTimestamp => fr
+    }
     println("\n\nFiles With Problems\n")
     badFiles foreach println
     println("\n-------------------------------\n")
@@ -137,11 +132,10 @@ object Main {
       case bl: BadSymbolicLink => bl
     }
     
-    val datedPhotosByName: Map[String, List[FileRecord]] = {
+    val datedPhotosByName: Map[String, List[FileRecord]] =
       val collection: Iterable[(String, FileRecord)] =
         filesByYear.values.flatten.map(fr => fr.name -> fr)
       collection.groupBy(_._1).map{case (k, v) => k.toLowerCase -> v.map(_._2).toList}
-    }
 
     val undatedPhotosByName: Map[String, Seq[FileRecord]] =
       undatedPhotos.groupBy(_.name.toLowerCase)
@@ -180,16 +174,15 @@ object Main {
     for {
       (_, files) <- wronglyPlaced
       file <- files
-    } {
-      file.moveToItsYear(photoDir, linksByTarget.getOrElse(file, Nil))
     }
+      file.moveToItsYear(photoDir, linksByTarget.getOrElse(file, Nil))
 
     val duplicateNames: Map[String, List[FileRecord]] = datedPhotosByName filter(_._2.size > 1)
     println(duplicateNames mkString "\n")
 
     val sameFiles = duplicateNames.filter(kv => kv._2.tail.contains(kv._2.head))
 
-    if (sameFiles.nonEmpty) {
+    if (sameFiles.nonEmpty)
       // merge these together, so there are no duplicates, and links are together with files
       // TODO: separate deduplicate operations and links organization
       val analyzed: List[FileGroup] = analyze(scannedPhotos ++ linksFromOutside)
@@ -199,6 +192,4 @@ object Main {
       val dataToProcess = analyzed filter (_.files.size > 1)
       println(dataToProcess)
       dataToProcess foreach (_.makeFirstFileLead())
-    }    
-  }
 }

@@ -6,60 +6,58 @@ import java.util.Date
 /**
  * Represents symbolic links to files with data
  */
-sealed trait FileLink extends FileOrLink {
-}
+sealed trait FileLink extends FileOrLink
 
 /**
  * Represents a bad symbolic link
  * @param path link path
  * @param why explanation of why it is bad
  */
-case class BadSymbolicLink(override val path: Path, why: String) extends FileLink {
+case class BadSymbolicLink(override val path: Path, why: String) extends FileLink:
 
   /**
    * We need an id, but we can't produce the file's hash.
    *  @return record id
    */
-  def id: String = "@" + path
+  lazy val id: String = "@" + path
 
-  override def toString = s"Bad Link $path: $why"
+  override lazy val toString = s"Bad Link $path: $why"
 
   /**
    * Try to fix this bad link
    * @param target the new target for this symbolic link
    * @return a new FileLink instance (it's good now)
    */
-  def fix(target: FileRecord): FileLink = {
-    if (!Files.isSymbolicLink(path)) {
+  def fix(target: FileRecord): FileLink =
+    if (!Files.isSymbolicLink(path))
       println(s"failed to rename $path: it's not a symbolic link")
       this
-    } else doWithBackup {
+    else doWithBackup {
       Files.createSymbolicLink(path, target.path)
       SymbolicLink(path, target)
     }
-  }
-}
 
 /**
  * Record describing a link to an image file
  * @param path link path
  * @param to image file to which it points (may be missing)
  */
-case class SymbolicLink(path: Path, to: FileRecord, depth: Int = 1) extends FileLink {
-  def redirectTo(target: FileRecord): SymbolicLink = {
+case class SymbolicLink(path: Path, to: FileRecord, depth: Int = 1) extends FileLink:
+  def redirectTo(target: FileRecord): SymbolicLink =
     doWithBackup {
       SymbolicLink(Files.createSymbolicLink(path, target.path), target)
     }
-  }
 
-  require(to.timestamp > Exif.MinPhotoTime, s"wrong link for $path: ${to.path}, ${new Date(to.timestamp)}")
+  require(
+    to.timestamp > Exif.MinPhotoTime,
+    s"wrong link for $path: ${to.path}, ${new Date(to.timestamp)}"
+  )
   
   /**
    * Removes a chain of links, pointing directly to the target file
    */
-  def resolve(): Unit = if (depth > 1) {
+  def resolve(): Unit = if (depth > 1)
     doWithBackup { Files.createSymbolicLink(path, to.path) }
-  }
 
   /**
    * Reverts the link: target becomes a link, this file becomes a target.
@@ -78,7 +76,7 @@ case class SymbolicLink(path: Path, to: FileRecord, depth: Int = 1) extends File
    * @return true iff this file is inside the folder
    */
   def isInside(folderPath: Path): Boolean =
-    to.path startsWith folderPath
+    to.path.startsWith(folderPath)
 
   def id: String = to.id
-}
+

@@ -1,14 +1,14 @@
 package onitut.images
 
 import onitut.images.ImageFiles.makeBak
-
+import onitut.Lib._
 import java.nio.file.{Files, Path}
 import java.util.{Calendar, Date}
 
 /**
  * Abstract record describing an image file or a link (for which target may be missing)
  */
-trait FileOrLink extends Record {
+trait FileOrLink extends Record:
   
   /**
    * Path of this file (or link
@@ -26,7 +26,7 @@ trait FileOrLink extends Record {
    * Rename this file to a .bak file - to make sure it's not lost in action
    * @return path for the renamed file
    */
-  def makeItBak(): Path = makeBak(path)
+  private def makeItBak(): Path = makeBak(path)
 
   /**
    * Checks if the file is inside `thumbnails` folder; its for the web, and nobody cares about thumbnails
@@ -42,11 +42,10 @@ trait FileOrLink extends Record {
   /**
    * Year of a file, from its `last modified time`
    */
-  lazy val year: Int = {
+  lazy val year: Int =
     val calendar = Calendar.getInstance
     calendar.setTime(new Date(timestamp))
     calendar.get(Calendar.YEAR)
-  }
 
   /**
    * Do something on a link while backing it up just in case; in the end delete the backup.
@@ -54,11 +53,14 @@ trait FileOrLink extends Record {
    * @tparam T type of result
    * @return whatever result the operation produced - or an exception happens.
    */
-  def doWithBackup[T](op: => T): T = {
+  def doWithBackup[T](op: => T): T =
     val bak = makeItBak()
     val result = op
-    Files.delete(bak)
-    result
-  }
+    if (System.getProperty("onitut.keepBakFiles", "false").toBoolean)
+      println(s"deleting $bak")
+      System.exit(42) // TODO: remove this
+      Files.delete(bak)
+//  Files.delete(bak)
 
-}
+    result
+
