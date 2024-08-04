@@ -1,8 +1,8 @@
 package onitut.images
 
 import com.drew.imaging.ImageMetadataReader
-import com.drew.metadata.exif.{ExifIFD0Directory, ExifSubIFDDirectory}
-import com.drew.metadata.{Directory, Metadata}
+import com.drew.metadata._
+import com.drew.metadata.exif._
 
 import java.io.IOException
 import java.nio.file.Path
@@ -21,9 +21,9 @@ case class Exif(path: Path):
    */
   private lazy val meta: Metadata =
     try ImageMetadataReader.readMetadata(path.toFile)
-    catch { case x: Exception =>
+    catch case x: Exception =>
       throw new IOException(s"Failed on file $path", x)
-    }
+
 
   private def theClassOf[T:ClassTag]: Class[T] =
     implicitly[ClassTag[T]].runtimeClass.asInstanceOf[Class[T]]

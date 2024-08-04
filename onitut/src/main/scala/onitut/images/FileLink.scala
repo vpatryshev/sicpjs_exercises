@@ -1,6 +1,7 @@
 package onitut.images
 
 import java.nio.file.{Files, Path, StandardCopyOption}
+import java.nio.file.StandardCopyOption._
 import java.util.Date
 
 /**
@@ -32,10 +33,9 @@ case class BadSymbolicLink(override val path: Path, why: String) extends FileLin
     if (!Files.isSymbolicLink(path))
       println(s"failed to rename $path: it's not a symbolic link")
       this
-    else doWithBackup {
+    else doWithBackup:
       Files.createSymbolicLink(path, target.path)
       SymbolicLink(path, target)
-    }
 
 /**
  * Record describing a link to an image file
@@ -44,31 +44,32 @@ case class BadSymbolicLink(override val path: Path, why: String) extends FileLin
  */
 case class SymbolicLink(path: Path, to: FileRecord, depth: Int = 1) extends FileLink:
   def redirectTo(target: FileRecord): SymbolicLink =
-    doWithBackup {
+    doWithBackup:
       SymbolicLink(Files.createSymbolicLink(path, target.path), target)
-    }
 
   require(
     to.timestamp > Exif.MinPhotoTime,
-    s"wrong link for $path: ${to.path}, ${new Date(to.timestamp)}"
+    s"wrong link for $path: ${to.path}, ${to.date}"
   )
   
   /**
    * Removes a chain of links, pointing directly to the target file
    */
-  def resolve(): Unit = if (depth > 1)
-    doWithBackup { Files.createSymbolicLink(path, to.path) }
+  def resolve(): Unit =
+    if  depth > 1 then
+      doWithBackup:
+        Files.createSymbolicLink(path, to.path)
 
   /**
    * Reverts the link: target becomes a link, this file becomes a target.
    * The contents of the target image is moved (as a file) to where the link was,
    * and is given the former link's name.
    */
-  def revert(): Unit = doWithBackup {
-    Files.move(to.path, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES)
-    Files.createSymbolicLink(to.path, path)
-    println(s"reverted $path to $to")
-  }
+  def revert(): Unit =
+    doWithBackup:
+      Files.move(to.path, path, REPLACE_EXISTING, COPY_ATTRIBUTES)
+      Files.createSymbolicLink(to.path, path)
+      println(s"reverted $path to $to")
 
   /**
    * Checks whether this file is located somewhere inside a folder with the given path

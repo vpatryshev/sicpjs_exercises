@@ -11,7 +11,7 @@ import scala.util.Try
 /**
  * Image files data handling
  */
-object ImageFiles {
+object ImageFiles:
 
   lazy val HomeDir: Path = Paths.get(System.getProperty("user.home"))
 
@@ -25,7 +25,7 @@ object ImageFiles {
   
   def hashOf(path: Path): String = hashOf(Files.readAllBytes(path))
   
-  private def resolveLink(path: Path): Either[String, (Path, Int)] =
+  private def resolveLink(link: Path): Either[String, (Path, Int)] =
     @tailrec def trace(paths: List[Path]): Either[String, (Path, Int)] =
       paths match
         case path :: _ if Files.isSymbolicLink(path) =>
@@ -36,25 +36,20 @@ object ImageFiles {
         case path :: _ if Files.isReadable(path) => Right((path, paths.length - 1))
         case _                                   => Left("missing")
 
-      
-    trace(path::Nil)
+    if (Files.isSymbolicLink(link))
+      trace(link::Nil)
+    else
+      Left("not a link")
 
   /**
    * @param path link file path
    * @return a list (maybe empty) of SymbolicLink records, or Nil if it's not a link
    */
-   def link(path: Path): FileLink =
-    if (Files.isSymbolicLink(path))
-      val to: Either[String, (FileRecord, Int)] = Try {
-        val target = resolveLink(path)
-        target map { case (p, depth) => (FileRecord(p), depth) }
-      } .toEither.left.map(_.getMessage).flatten
-      
-      to match
-        case Left(err) => BadSymbolicLink(path, err)
-        case Right((target, depth)) => SymbolicLink(path, target, depth)
-
-    else BadSymbolicLink(path, "not a link")
+  def link(path: Path): FileLink =
+    resolveLink(path) match
+      case Left(err) => BadSymbolicLink(path, err)
+      case Right((target, depth)) =>
+        SymbolicLink(path, FileRecord(target), depth)
 
   /**
    * Creates a FileRecord for a regular image file;
@@ -64,10 +59,11 @@ object ImageFiles {
    * @return A singleton list for an image file, or Nil
    */
   private def realFile(path: Path): Option[FileRecord] =
-    if (!Files.isSymbolicLink(path) &&
+    if !Files.isSymbolicLink(path) &&
          Files.isReadable    (path) &&
-         Files.size          (path) > 0)
-         Try { FileRecord(path) } toOption
+         Files.size          (path) > 0
+    then
+      Try(FileRecord(path)) toOption
     else None
   /**
    * Contents of a folder, deep, as Records.
@@ -85,13 +81,12 @@ object ImageFiles {
    * @return a list of records for all image files or links to image files
    */
   def scan(file: File): List[FileOrLink] = traverse(
-    f => {
+    f =>
       val path = f.toPath
       if (!path.getFileName.toString.toLowerCase.matches(Extensions)) None else
       if (Files.isSymbolicLink(path)) Option(link(path))
       else realFile(path)
-    }
-          )(file) toList
+  )(file) toList
 
   /**
    * Given a path, add `.bak` to its extension.
@@ -115,21 +110,22 @@ object ImageFiles {
    * @return a list of grouped data
    */
   def analyze(entries: List[FileOrLink]): List[FileGroup] =
+    val x: FileOrLink = entries.head
+    val y: HasId = x
 
-    val grouped: Map[String, List[FileOrLink]] = entries.groupBy(_.id)
+    val fileGroups =
+      entries.groupBy(_.id).collect:
+        case (_, list@(head::_)) =>
+          FileGroup(list sortBy (_.timestamp), head.id)
 
-    grouped.values.map(list => {
-      val files: List[FileOrLink] = list sortBy (_.timestamp)
-      
-      FileGroup(files, list.head.id)
-    }).toList sorted
+    fileGroups.toList.sorted
 
   /**
    * Dumps a list of records to a file
    * @param data list of records
    * @param path path of the output file
    */
-  def dump[T <: Record](data: List[T], path: String): Unit =
+  def dump[T <: HasId](data: List[T], path: String): Unit =
     val out = new PrintWriter(new FileWriter(path))
     data foreach out.println
     out.close()
@@ -141,17 +137,15 @@ object ImageFiles {
    * @return a pair: a map: year -> list of photos, and a sequence of undated photos
    */
   def groupByYear(scannedPhotos: List[FileOrLink], photoDir: Path): (Map[Int, List[FileRecord]], Seq[FileRecord]) =
-    val photosWithYearsMaybe = scannedPhotos.collect {
+    val photosWithYearsMaybe = scannedPhotos.collect:
       case record: FileRecord => (record.folderYear(photoDir), record)
-    }
 
-    val datedPhotos: List[(Int, FileRecord)] = photosWithYearsMaybe collect {
+    val datedPhotos: List[(Int, FileRecord)] = photosWithYearsMaybe collect:
       case (Some(year: Int), record) => year -> record
-    }
 
-    val undatedPhotos: Seq[FileRecord] = photosWithYearsMaybe collect {
+    val undatedPhotos: Seq[FileRecord] = photosWithYearsMaybe collect:
       case (None, record) => record
-    }
+
     val mapByYear = (datedPhotos groupBy (_._1)).view.mapValues(_.map(_._2)).toMap
 
     (mapByYear, undatedPhotos)
@@ -163,9 +157,8 @@ object ImageFiles {
    */
   def revertExternalLinks(files: List[FileOrLink], photoDir: Path): Unit =
     // links in our pictures folder pointing outside
-    val externalPhotoLinks = files collect {
+    val externalPhotoLinks = files collect:
       case link: SymbolicLink if !link.isInside(photoDir) => link
-    }
 
     // revert them all, so all images are in pictures folder
     externalPhotoLinks foreach (_.revert())
@@ -176,15 +169,12 @@ object ImageFiles {
    * @tparam T type of returned data, per file
    * @return an iterable of `T`s.
    */
-  def traverse[T](op: File => Option[T]): File => Iterable[T] = {
+  def traverse[T](op: File => Option[T]): File => Iterable[T] =
 
     def scan(file: File): Iterable[T] =
       Try {
         if (file.isDirectory) file.listFiles.toList flatMap scan
         else op(file).toList
-      } getOrElse Nil
+      }.getOrElse(Nil)
 
     scan
-  }
-
-}

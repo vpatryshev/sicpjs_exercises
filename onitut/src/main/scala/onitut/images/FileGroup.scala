@@ -7,7 +7,7 @@ import java.util.Date
 case class FileGroup(
   files: List[FileOrLink],
   id: String
-) extends Record with Ordered[FileGroup]:
+) extends HasId with Ordered[FileGroup]:
 
   require(files.nonEmpty, "Empty file list not allowed")
 
@@ -17,7 +17,7 @@ case class FileGroup(
    * @return a comma-separated list of files with timestamps
    */
   lazy val paths: String =
-    files.map(f => s"${f.path}[${new Date(f.timestamp)}]") mkString ";"
+    files.map(f => s"${f.path}[${f.date}]") mkString ";"
 
   override lazy val toString: String = s"Group($paths)"
 
@@ -27,11 +27,10 @@ case class FileGroup(
   def makeFirstFileLead(): Unit =
     val lead: FileOrLink = files.head
     for file <- files.tail do
-      file doWithBackup {
+      file.doWithBackup:  // make sure it's not lost in action
         try Files.createSymbolicLink(file.path, lead.path)
         catch case x: Exception =>
           System.err.println(s"failed to create link $file to $lead: ${x.getMessage}")
-      }
 
   def compare(that: FileGroup): Int = paths compare that.paths
 

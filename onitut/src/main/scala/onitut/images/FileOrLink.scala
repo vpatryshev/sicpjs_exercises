@@ -1,6 +1,7 @@
 package onitut.images
 
 import onitut.images.ImageFiles.makeBak
+import onitut.Lib
 import onitut.Lib._
 import java.nio.file.{Files, Path}
 import java.util.{Calendar, Date}
@@ -8,7 +9,7 @@ import java.util.{Calendar, Date}
 /**
  * Abstract record describing an image file or a link (for which target may be missing)
  */
-trait FileOrLink extends Record:
+trait FileOrLink extends HasId:
   
   /**
    * Path of this file (or link
@@ -39,13 +40,9 @@ trait FileOrLink extends Record:
    */
   lazy val timestamp: Long = Files.getLastModifiedTime(path).toMillis
 
-  /**
-   * Year of a file, from its `last modified time`
-   */
-  lazy val year: Int =
-    val calendar = Calendar.getInstance
-    calendar.setTime(new Date(timestamp))
-    calendar.get(Calendar.YEAR)
+  lazy val date: Date = new Date(timestamp)
+
+  lazy val year: Int = Lib.year(timestamp)
 
   /**
    * Do something on a link while backing it up just in case; in the end delete the backup.
@@ -60,7 +57,6 @@ trait FileOrLink extends Record:
       println(s"deleting $bak")
       System.exit(42) // TODO: remove this
       Files.delete(bak)
-//  Files.delete(bak)
 
     result
 

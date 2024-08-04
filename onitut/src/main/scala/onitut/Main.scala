@@ -14,43 +14,46 @@ import onitut.Lib._
 /**
  * Manages image files across the drive
  */
-object Main {
-  val DateFormat: SimpleDateFormat = new SimpleDateFormat("yyyy-MM-dd")
-  val Extensions = ".*\\.jpg|jpeg"
+object Main:
+  private val DateFormat: SimpleDateFormat =
+    new SimpleDateFormat("yyyy-MM-dd")
+  private val Extensions = ".*\\.jpg|jpeg"
 
-  val DefaultListFile: String = "filelist.out"
+  private val DefaultListFile: String = "filelist.out"
 
-  def fixLink(photosByName1: Map[String, Seq[FileRecord]], photosByName2: Map[String, Seq[FileRecord]])(link: BadSymbolicLink): FileLink = {
+  private def fixLink(
+    photosByName1: Map[String, Seq[FileRecord]],
+    photosByName2: Map[String, Seq[FileRecord]]
+  )(
+    link: BadSymbolicLink
+  ): FileLink =
     val path = link.path
     val mapOfCandidates = photosByName1.getOrElse(path.getFileName.toString.toLowerCase, Nil) map(record => (record.id, record)) toMap
     
-    mapOfCandidates.values.toList match {
+    mapOfCandidates.values.toList match
       case target::Nil =>
         link.fix(target)
+
       case Nil =>
         val foundMore: Seq[FileRecord] = photosByName2.getOrElse(path.getFileName.toString.toLowerCase, Nil)
         val mapOfCandidates2: Map[String, FileRecord] = foundMore map(record => (record.id, record)) toMap
         
-        mapOfCandidates2.values.toList match {
+        mapOfCandidates2.values.toList match
           case target :: Nil => link.fix(target)
           case otherwise =>
             println("bad luck with " + (if (otherwise.isEmpty) "." else s": $otherwise"))
             link
-        }
+
       case moreThanOne @ first::second::_ =>
         val notThumbnails = moreThanOne filterNot (_.isThumbnail)
-        notThumbnails match {
+        notThumbnails match
           case one::_ => link.fix(one)
           case _ =>
             println(if (link.isThumbnail) s"Ignoring this bad thumbnail: $link" else
-              s"Double choice for for $link:\n  ${first.toString}\n  ${second.toString}")
+              s"Double choice for for $link:\n  $first\n  $second")
             link
-            
-        }
-    }
-  }
 
-  def fixLinks(badLinksFromOutside: List[BadSymbolicLink],
+  private def fixLinks(badLinksFromOutside: List[BadSymbolicLink],
     photosByName1: Map[String, Seq[FileRecord]],
     photosByName2: Map[String, Seq[FileRecord]]): List[FileLink] =
     badLinksFromOutside map fixLink(photosByName1, photosByName2)
@@ -81,36 +84,38 @@ object Main {
       Option(_) filter(_.getName.toLowerCase.endsWith(".jpg.bak"))
     )(new File(root))
 
-    for {
+    for
       file <- badBackups
       betterFile = new File(file.getPath.dropRight(4))
-    }
-      if (betterFile.exists())
+    do
+      if betterFile.exists() then
         err.println(s"wtf with $file?")
       else
         file.renameTo(betterFile)
         println(s"$file renamed")
     
-    require(badBackups.isEmpty, "All bad backups were supposed to be fixed by now")
+    require(
+      badBackups.isEmpty,
+      "All bad backups were supposed to be fixed by now"
+    )
 
     // data in our pictures folder
     val scannedPhotos: List[FileOrLink] = scan(photoDir.toFile)
-
-    dump(scannedPhotos, storage)
+      dump[FileOrLink](scannedPhotos, storage)
 
     revertExternalLinks(scannedPhotos, photoDir)
 
     // files with too late timestamps
     // that files timestamps are same as exif timestamps in images
-    val filesToTouch = scannedPhotos collect {
+    val filesToTouch = scannedPhotos collect:
       case fr: FileRecord if fr.fileTimestampDoneLater => fr
-    }
+
     filesToTouch foreach (_.touch())
     
     // that files timestamps are same as exif timestamps in images
-    val badFiles = scannedPhotos collect {
+    val badFiles = scannedPhotos collect:
       case fr: FileRecord if fr.hasProblemWithTimestamp => fr
-    }
+
     println("\n\nFiles With Problems\n")
     badFiles foreach println
     println("\n-------------------------------\n")
@@ -124,38 +129,37 @@ object Main {
     if (!rootFolder.isDirectory) fail(s"$root is not a directory")
 
     // links from outside into our pictures folder
-    val linksFromOutside: List[FileLink] = scan(rootFolder) collect {
+    val linksFromOutside: List[FileLink] = scan(rootFolder) collect:
       case link: FileLink => link
-    }
 
-    val badLinksFromOutside: List[BadSymbolicLink] = linksFromOutside collect {
+    val badLinksFromOutside: List[BadSymbolicLink] = linksFromOutside collect:
       case bl: BadSymbolicLink => bl
-    }
-    
+
     val datedPhotosByName: Map[String, List[FileRecord]] =
       val collection: Iterable[(String, FileRecord)] =
         filesByYear.values.flatten.map(fr => fr.name -> fr)
-      collection.groupBy(_._1).map{case (k, v) => k.toLowerCase -> v.map(_._2).toList}
+      collection.groupBy(_._1).map:
+        case (k, v) => k.toLowerCase -> v.map(_._2).toList
 
     val undatedPhotosByName: Map[String, Seq[FileRecord]] =
       undatedPhotos.groupBy(_.name.toLowerCase)
 
     val fixed = fixLinks(badLinksFromOutside, datedPhotosByName, undatedPhotosByName)
     val goodFixed = fixed collect { case link: SymbolicLink => link }
+
     val notFixed = fixed collect { case link: BadSymbolicLink => link}
 
     println(s"bad outside links: ${badLinksFromOutside.size}, fixed: ${goodFixed.size}, not fixed: ${notFixed.size}\n ${notFixed mkString "\n"}")
     
-    println(s"Number of chained links: ${linksFromOutside.count(_ match {
-      case SymbolicLink(_,_,n) => n > 1
-      case _ => false
-    })}")
+    println(s"Number of chained links: ${linksFromOutside.count(
+      _ match
+        case SymbolicLink(_,_,n) => n > 1
+        case _ => false
+    )}")
     
-    linksFromOutside foreach {
+    linksFromOutside foreach:
       case link: SymbolicLink => link.resolve()
-      case _ => // do nothing
-    }
-    
+
     val goodLinksFromOutside: List[SymbolicLink] = linksFromOutside collect { case link: SymbolicLink => link }
     val goodLinksFromInside: List[SymbolicLink] = scannedPhotos collect { case link: SymbolicLink => link }
     
@@ -163,18 +167,19 @@ object Main {
     
     val linksByTarget: Map[FileRecord, List[SymbolicLink]] = allGoodLinks groupBy(_.to)
     
-    val wronglyPlaced: Map[Int, Seq[FileRecord]] = filesByYear.view.map {
-      case (year, list) => year -> list.filter(_.year < year)
-    } filter(_._2.nonEmpty) toMap
+    val wronglyPlaced: Map[Int, Seq[FileRecord]] = filesByYear.view.collect {
+      case (groupYear, list) if list.nonEmpty =>
+        groupYear -> list.filter(_.year < groupYear)
+    } toMap
     
     println(s"\n\n${wronglyPlaced.values.map(_.size)sum} files are wrongly placed:\n")
 //    println(wronglyPlaced.toList.sortBy(_._1) mkString "\n")
 //    println("\n------------------\n\n")
     
-    for {
+    for
       (_, files) <- wronglyPlaced
       file <- files
-    }
+    do
       file.moveToItsYear(photoDir, linksByTarget.getOrElse(file, Nil))
 
     val duplicateNames: Map[String, List[FileRecord]] = datedPhotosByName filter(_._2.size > 1)
@@ -192,4 +197,3 @@ object Main {
       val dataToProcess = analyzed filter (_.files.size > 1)
       println(dataToProcess)
       dataToProcess foreach (_.makeFirstFileLead())
-}

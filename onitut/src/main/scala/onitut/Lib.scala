@@ -1,6 +1,6 @@
 package onitut
 
-import java.util.Calendar
+import java.util.{Calendar, Date}
 import java.nio.file.{Files, Path, Paths}
 import java.nio.file.attribute.{BasicFileAttributes, FileTime}
 import scala.util.Try
@@ -10,7 +10,7 @@ object Lib:
   /**
    * Abstract record describing a file (image or link), or a group theirof, linked to one image file
    */
-  trait Record:
+  trait HasId:
     /**
      * Identifies this record, taking the target id - or the file path if no target
      * @return record id
@@ -30,6 +30,13 @@ object Lib:
       case Nil => None
       case list => Option(list.min)
 
+  /**
+   * Year of a timestamp
+   */
+  def year(timestamp: Long): Int =
+    val calendar = Calendar.getInstance
+    calendar.setTime(new Date(timestamp))
+    calendar.get(Calendar.YEAR)
 
   def timestampOf(
     year: Int,
@@ -57,8 +64,7 @@ object Lib:
 
   def creationTimeSeconds(path: Path): Option[Long] = creationTime(path) map (_ / 1000)
 
-  def fail(msg: String): Nothing = {
+  def fail(msg: String): Nothing =
     System.err.println(msg)
     System.exit(1)
     throw new NotImplementedError(msg)
-  }
