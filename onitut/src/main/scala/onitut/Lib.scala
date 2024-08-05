@@ -53,10 +53,10 @@ object Lib:
   /**
    * Set the file's timestamp to what we found in exif
    */
-  def touch(path: Path, millis: Long): Unit =
+  def setCreationTime(path: Path, millis: Long): Unit =
     val time = FileTime.fromMillis(millis)
     Files.setAttribute(path, "creationTime", time)
-    Files.setAttribute(path, "lastModifiedTime", time)
+//    Files.setAttribute(path, "lastModifiedTime", time)
 
   def creationTime(path: Path): Option[Long] =
     val attr = Files.readAttributes(path, classOf[BasicFileAttributes])

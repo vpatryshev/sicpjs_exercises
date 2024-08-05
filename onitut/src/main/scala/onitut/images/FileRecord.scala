@@ -24,7 +24,7 @@ case class FileRecord(path: Path) extends FileOrLink:
   def touch(): Unit =
     exifTimestamp foreach:
       ts =>
-        try Lib.touch(path, ts)
+        try Lib.setCreationTime(path, ts)
         catch case x: Exception => println(s"${x.getMessage} while touching $this")
   /**
    * Moves this image file in photoDir to the right year folder
