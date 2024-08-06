@@ -25,7 +25,7 @@ object Main:
     photosByName1: Map[String, Seq[FileRecord]],
     photosByName2: Map[String, Seq[FileRecord]]
   )(
-    link: BadSymbolicLink
+    link: BadFileLink
   ): FileLink =
     val path = link.path
     val mapOfCandidates = photosByName1.getOrElse(path.getFileName.toString.toLowerCase, Nil) map(record => (record.id, record)) toMap
@@ -40,9 +40,8 @@ object Main:
         
         mapOfCandidates2.values.toList match
           case target :: Nil => link.fix(target)
-          case otherwise =>
-            println("bad luck with " + (if (otherwise.isEmpty) "." else s": $otherwise"))
-            link
+          case otherwise => link.scold(
+              "bad luck with " + (if (otherwise.isEmpty) "." else s": $otherwise"))
 
       case moreThanOne @ first::second::_ =>
         val notThumbnails = moreThanOne filterNot (_.isThumbnail)
@@ -53,9 +52,9 @@ object Main:
               s"Double choice for for $link:\n  $first\n  $second")
             link
 
-  private def fixLinks(badLinksFromOutside: List[BadSymbolicLink],
-    photosByName1: Map[String, Seq[FileRecord]],
-    photosByName2: Map[String, Seq[FileRecord]]): List[FileLink] =
+  private def fixLinks(badLinksFromOutside: List[BadFileLink],
+                       photosByName1: Map[String, Seq[FileRecord]],
+                       photosByName2: Map[String, Seq[FileRecord]]): List[FileLink] =
     badLinksFromOutside map fixLink(photosByName1, photosByName2)
 
   /**
@@ -132,8 +131,8 @@ object Main:
     val linksFromOutside: List[FileLink] = scan(rootFolder) collect:
       case link: FileLink => link
 
-    val badLinksFromOutside: List[BadSymbolicLink] = linksFromOutside collect:
-      case bl: BadSymbolicLink => bl
+    val badLinksFromOutside: List[BadFileLink] = linksFromOutside collect:
+      case bl: BadFileLink => bl
 
     val datedPhotosByName: Map[String, List[FileRecord]] =
       val collection: Iterable[(String, FileRecord)] =
@@ -147,7 +146,7 @@ object Main:
     val fixed = fixLinks(badLinksFromOutside, datedPhotosByName, undatedPhotosByName)
     val goodFixed = fixed collect { case link: SymbolicLink => link }
 
-    val notFixed = fixed collect { case link: BadSymbolicLink => link}
+    val notFixed = fixed collect { case link: BadFileLink => link}
 
     println(s"bad outside links: ${badLinksFromOutside.size}, fixed: ${goodFixed.size}, not fixed: ${notFixed.size}\n ${notFixed mkString "\n"}")
     

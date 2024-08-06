@@ -25,8 +25,8 @@ object ImageFiles:
   
   def hashOf(path: Path): String = hashOf(Files.readAllBytes(path))
   
-  private def resolveLink(link: Path): Either[String, (Path, Int)] =
-    @tailrec def trace(paths: List[Path]): Either[String, (Path, Int)] =
+  private def resolveLink(link: Path): Result[(Path, Int)] =
+    @tailrec def trace(paths: List[Path]): Result[(Path, Int)] =
       paths match
         case path :: _ if Files.isSymbolicLink(path) =>
           val target: Path = Files.readSymbolicLink(path)
@@ -47,7 +47,7 @@ object ImageFiles:
    */
   def link(path: Path): FileLink =
     resolveLink(path) match
-      case Left(err) => BadSymbolicLink(path, err)
+      case Left(err) => BadFileLink(path, err)
       case Right((target, depth)) =>
         SymbolicLink(path, FileRecord(target), depth)
 

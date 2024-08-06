@@ -54,7 +54,7 @@ trait FileOrLink extends HasId:
     val bak = makeItBak()
     val result = op
     if (System.getProperty("onitut.keepBakFiles", "false").toBoolean)
-      println(s"deleting $bak")
+      log(s"deleting $bak")
       System.exit(42) // TODO: remove this
       Files.delete(bak)
 

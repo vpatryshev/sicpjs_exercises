@@ -1,5 +1,6 @@
 package onitut.images
 
+import onitut.Lib.Result
 import java.nio.file.{Files, Path, StandardCopyOption}
 import java.nio.file.StandardCopyOption._
 import java.util.Date
@@ -7,14 +8,16 @@ import java.util.Date
 /**
  * Represents symbolic links to files with data
  */
-sealed trait FileLink extends FileOrLink
+sealed trait FileLink extends FileOrLink {
+  def scold(msg: String): BadFileLink = BadFileLink(path, msg)
+}
 
 /**
  * Represents a bad symbolic link
  * @param path link path
  * @param why explanation of why it is bad
  */
-case class BadSymbolicLink(override val path: Path, why: String) extends FileLink:
+case class BadFileLink(override val path: Path, why: String) extends FileLink:
 
   /**
    * We need an id, but we can't produce the file's hash.
@@ -31,8 +34,7 @@ case class BadSymbolicLink(override val path: Path, why: String) extends FileLin
    */
   def fix(target: FileRecord): FileLink =
     if (!Files.isSymbolicLink(path))
-      println(s"failed to rename $path: it's not a symbolic link")
-      this
+      BadFileLink(path, s"it's not a symbolic link")
     else doWithBackup:
       Files.createSymbolicLink(path, target.path)
       SymbolicLink(path, target)

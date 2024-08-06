@@ -7,6 +7,8 @@ import scala.util.Try
 
 object Lib:
 
+  def log(msg: Any): Unit = println(msg)
+
   /**
    * Abstract record describing a file (image or link), or a group theirof, linked to one image file
    */
@@ -16,6 +18,8 @@ object Lib:
      * @return record id
      */
     def id: String
+
+  type Result[T] = Either[String, T]
 
   /**
    * Technical thing. Calculate a minimum of two optional values (or None, if none available)
