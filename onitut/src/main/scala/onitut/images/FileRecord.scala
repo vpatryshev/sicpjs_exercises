@@ -5,7 +5,8 @@ import java.nio.file.{Files, Path, Paths}
 import java.util.Date
 import scala.language.postfixOps
 import scala.util.Try
-import onitut.Lib
+import onitut.Lib._
+import System.{err, out}
 
 /**
  * Represents an image data file
@@ -24,8 +25,8 @@ case class FileRecord(path: Path) extends FileOrLink:
   def touch(): Unit =
     exifTimestamp foreach:
       ts =>
-        try Lib.setCreationTime(path, ts)
-        catch case x: Exception => println(s"${x.getMessage} while touching $this")
+        try setCreationTime(path, ts)
+        catch case x: Exception => err.println(s"${x.getMessage} while touching $this")
   /**
    * Moves this image file in photoDir to the right year folder
    * @param photoDir folder holding all photos
@@ -37,15 +38,15 @@ case class FileRecord(path: Path) extends FileOrLink:
     val newPath = yearPath.resolve(name)
     
     if (Files.isRegularFile(newPath) && Files.isReadable(newPath) && path != newPath)
-      System.err.println(s"File $newPath already exists, can't move $path there")
+      err.println(s"File $newPath already exists, can't move $path there")
 
     if (path.startsWith(yearPath))
       (this, links) // nothing to do
     else // the following two lines are written by a bot; check if it's ok
       if (Files.isRegularFile(newPath) && Files.isReadable(newPath) && path != newPath)
-        System.err.println(s"File $newPath already exists, can't move $path there")
+        err.println(s"File $newPath already exists, can't move $path there")
       if (Files.isSymbolicLink(newPath))
-        println(s"deleting symlink $newPath")
+        log(s"deleting symlink $newPath")
         System.exit(42) // TODO: remove this
         Files.delete(newPath)
 

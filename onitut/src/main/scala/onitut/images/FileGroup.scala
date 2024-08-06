@@ -3,6 +3,7 @@ package onitut.images
 import onitut.Lib._
 import java.nio.file.Files
 import java.util.Date
+import System.{err, out}
 
 case class FileGroup(
   files: List[FileOrLink],
@@ -30,7 +31,7 @@ case class FileGroup(
       file.doWithBackup:  // make sure it's not lost in action
         try Files.createSymbolicLink(file.path, lead.path)
         catch case x: Exception =>
-          System.err.println(s"failed to create link $file to $lead: ${x.getMessage}")
+          err.println(s"failed to create link $file to $lead: ${x.getMessage}")
 
   def compare(that: FileGroup): Int = paths compare that.paths
 

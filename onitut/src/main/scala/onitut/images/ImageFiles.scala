@@ -175,6 +175,6 @@ object ImageFiles:
       Try {
         if (file.isDirectory) file.listFiles.toList flatMap scan
         else op(file).toList
-      }.getOrElse(Nil)
+      } .getOrElse(Nil)
 
     scan

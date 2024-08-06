@@ -4,6 +4,7 @@ import java.util.{Calendar, Date}
 import java.nio.file.{Files, Path, Paths}
 import java.nio.file.attribute.{BasicFileAttributes, FileTime}
 import scala.util.Try
+import System.{err, out}
 
 object Lib:
 
@@ -55,7 +56,7 @@ object Lib:
     c.getTime.getTime
 
   /**
-   * Set the file's timestamp to what we found in exif
+   * Set the file's creation timestamp to what we found in exif
    */
   def setCreationTime(path: Path, millis: Long): Unit =
     val time = FileTime.fromMillis(millis)
@@ -69,6 +70,6 @@ object Lib:
   def creationTimeSeconds(path: Path): Option[Long] = creationTime(path) map (_ / 1000)
 
   def fail(msg: String): Nothing =
-    System.err.println(msg)
+    err.println(msg)
     System.exit(1)
     throw new NotImplementedError(msg)

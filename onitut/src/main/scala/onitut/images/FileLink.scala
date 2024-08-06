@@ -8,9 +8,8 @@ import java.util.Date
 /**
  * Represents symbolic links to files with data
  */
-sealed trait FileLink extends FileOrLink {
+sealed trait FileLink extends FileOrLink:
   def scold(msg: String): BadFileLink = BadFileLink(path, msg)
-}
 
 /**
  * Represents a bad symbolic link

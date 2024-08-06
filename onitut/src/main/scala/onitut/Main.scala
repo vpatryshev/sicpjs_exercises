@@ -48,7 +48,7 @@ object Main:
         notThumbnails match
           case one::_ => link.fix(one)
           case _ =>
-            println(if (link.isThumbnail) s"Ignoring this bad thumbnail: $link" else
+            log(if (link.isThumbnail) s"Ignoring this bad thumbnail: $link" else
               s"Double choice for for $link:\n  $first\n  $second")
             link
 
@@ -91,7 +91,7 @@ object Main:
         err.println(s"wtf with $file?")
       else
         file.renameTo(betterFile)
-        println(s"$file renamed")
+        log(s"$file renamed")
     
     require(
       badBackups.isEmpty,
@@ -115,9 +115,9 @@ object Main:
     val badFiles = scannedPhotos collect:
       case fr: FileRecord if fr.hasProblemWithTimestamp => fr
 
-    println("\n\nFiles With Problems\n")
-    badFiles foreach println
-    println("\n-------------------------------\n")
+    log("\n\nFiles With Problems\n")
+    badFiles foreach log
+    log("\n-------------------------------\n")
 
     val (filesByYear: Map[Int, List[FileRecord]], undatedPhotos: Seq[FileRecord]) =
       groupByYear(scannedPhotos, photoDir)
@@ -148,9 +148,9 @@ object Main:
 
     val notFixed = fixed collect { case link: BadFileLink => link}
 
-    println(s"bad outside links: ${badLinksFromOutside.size}, fixed: ${goodFixed.size}, not fixed: ${notFixed.size}\n ${notFixed mkString "\n"}")
+    log(s"bad outside links: ${badLinksFromOutside.size}, fixed: ${goodFixed.size}, not fixed: ${notFixed.size}\n ${notFixed mkString "\n"}")
     
-    println(s"Number of chained links: ${linksFromOutside.count(
+    log(s"Number of chained links: ${linksFromOutside.count(
       _ match
         case SymbolicLink(_,_,n) => n > 1
         case _ => false
@@ -171,9 +171,9 @@ object Main:
         groupYear -> list.filter(_.year < groupYear)
     } toMap
     
-    println(s"\n\n${wronglyPlaced.values.map(_.size)sum} files are wrongly placed:\n")
-//    println(wronglyPlaced.toList.sortBy(_._1) mkString "\n")
-//    println("\n------------------\n\n")
+    log(s"\n\n${wronglyPlaced.values.map(_.size)sum} files are wrongly placed:\n")
+//    log(wronglyPlaced.toList.sortBy(_._1) mkString "\n")
+//    log("\n------------------\n\n")
     
     for
       (_, files) <- wronglyPlaced
